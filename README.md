@@ -6,20 +6,53 @@ TelePixels is a digital medical imaging platform designed to make the journey fr
 
 ## The Problem
 
-For many patients, getting an imaging examination is only one part of the healthcare journey.
+Medical imaging is often critical to diagnosis and treatment, but in many healthcare settings, the process does not end when the image is acquired. The image still needs to reach the appropriate reporting professional, the report needs to return to the healthcare team, and the patient needs reliable access to the outcome.
 
-After an X-ray, ultrasound, CT, MRI, or other examination, patients may still face challenges such as:
+In facilities where radiologists or other specialists are not physically available, this process can become slow, fragmented, and expensive.
 
-* Difficulty accessing their imaging reports after leaving the facility
-* Delays in getting reports to the clinician who needs them
-* Fragmented patient and imaging information
-* Limited access to radiologists and specialized reporting services
-* Repeated communication between patients, imaging facilities, and clinicians
-* Imaging workflows that still depend heavily on paper, physical storage, or disconnected systems
+### 1. Delays in radiology reporting
+
+Medical images may remain pending when a qualified radiologist is not available at the imaging facility. Moving images and accompanying information between facilities or professionals can introduce delays, which can slow down clinical decision-making and patient management.
+
+### 2. Geographic barriers to specialist reporting
+
+Patients and healthcare workers may depend on physical movement of radiographs, films, documents, or other information when specialist reporting is not available locally.
+
+This creates a particular challenge for facilities and patients in areas where specialized radiology services are limited.
+
+### 3. Unnecessary patient travel
+
+Patients may need to return to an imaging facility to collect reports, provide information, or follow up on imaging results.
+
+Where reporting or specialist access requires physical presence, patients can incur additional transportation costs, lose time, and face difficulties accessing care.
+
+### 4. Dependence on physical radiographic films
+
+Traditional film-based workflows can create additional costs for imaging facilities through film printing, physical storage, handling, duplication, and transportation.
+
+Physical films can also make it more difficult to share an examination quickly with a radiologist or another authorized healthcare professional.
+
+### 5. Fragmented imaging workflow
+
+Patient information, imaging requests, medical images, reporting, and report access can exist across separate processes.
+
+When these components are not connected, healthcare professionals may spend additional time locating information, communicating between facilities, and transferring imaging studies.
+
+### 6. Limited access to specialists
+
+A healthcare facility may have imaging equipment but not have a radiologist or relevant specialist physically available at the same location.
+
+This creates an access gap: **the patient can obtain the examination, but timely specialist reporting may still be difficult to access.**
+
+### The underlying problem
+
+The problem is not simply the lack of medical imaging equipment.
+
+It is the difficulty of getting the **right imaging information to the right healthcare professional at the right time**, while allowing the patient to access the resulting information without unnecessary travel or administrative barriers.
 
 For healthcare facilities, these challenges can make it harder to manage imaging requests, studies, reporting, and patient access in one place.
 
-TelePixels is designed around the idea that **medical imaging should not end when the patient leaves the imaging room.**
+TelePixels is being developed to address this gap through a connected digital imaging and teleradiology workflow.
 
 ## Our Approach
 
