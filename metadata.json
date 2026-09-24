@@ -1,0 +1,5 @@
+{
+  "name": "TelePixels",
+  "description": "A next-generation teleradiology platform for facility imaging workflow automation, featuring patient intake, DICOM-compatible viewing, and AI-assisted reporting.",
+  "requestFramePermissions": []
+}

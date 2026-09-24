@@ -1,0 +1,336 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  /* Default Theme (TelePixels) Variables */
+  --primary: #967E2B;
+  --primary-rgb: 150, 126, 43;
+  --secondary: #4facfe;
+  --accent: #B7E5CD;
+  --background: #0f172a;
+  --background-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --dropdown-bg: #1a1a1a;
+  --text-main: #ffffff;
+  --text-muted: #94a3b8;
+  
+  /* Theme mapping */
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-main: var(--text-main);
+  --color-muted: var(--text-muted);
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+}
+
+.theme-teleradiology {
+  --primary: #967E2B;
+  --primary-rgb: 150, 126, 43;
+  --secondary: #010204;
+  --accent: #967E2B;
+  --background: #F5F5F7;
+  --background-gradient: #9F9F9F;
+  --glass-bg: rgba(255, 255, 255, 0.3);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --dropdown-bg: #f8fafc;
+  --text-main: #000000;
+  --text-muted: #423714;
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-main: var(--text-main);
+  --color-muted: var(--text-muted);
+  --color-success: #967E2B;
+  --color-danger: #ef4444;
+}
+
+.theme-teleradiology .glass-panel {
+  @apply backdrop-blur-md shadow-lg border-white/30;
+}
+
+.theme-teleradiology .glass-input {
+  @apply bg-slate-50 border-[#010204]/20;
+}
+
+.theme-teleradiology .glass-btn {
+  @apply shadow-none;
+}
+
+/* Professional theme (Teleradiology) high-contrast black spectrum metadata text */
+.theme-teleradiology:not(.patient-portal-viewer) .metadata-header {
+  color: #000000 !important;
+  font-weight: 900 !important;
+}
+
+.theme-teleradiology:not(.patient-portal-viewer) .metadata-label {
+  color: #020617 !important; /* Deepest black-slate 950 */
+  font-weight: 900 !important;
+}
+
+.theme-teleradiology:not(.patient-portal-viewer) .metadata-value {
+  color: #000000 !important; /* Absolute black */
+  font-weight: 800 !important;
+}
+
+.theme-teleradiology:not(.patient-portal-viewer) .metadata-value-mono {
+  color: #022c22 !important; /* Black spectrum emerald */
+  font-weight: 800 !important;
+}
+
+.theme-teleradiology:not(.patient-portal-viewer) .clinical-history-text {
+  color: #000000 !important; /* Absolute black */
+  font-weight: 700 !important;
+}
+
+/* Patient Portal embedded viewer metadata overrides: ALWAYS white/bright text for maximum legibility */
+.patient-portal-viewer .metadata-header,
+.theme-teleradiology .patient-portal-viewer .metadata-header {
+  color: #ffffff !important;
+  font-weight: 900 !important;
+}
+
+.patient-portal-viewer .metadata-label,
+.theme-teleradiology .patient-portal-viewer .metadata-label {
+  color: #cbd5e1 !important; /* Crisp light slate-300 */
+  font-weight: 900 !important;
+}
+
+.patient-portal-viewer .metadata-label.primary-label,
+.theme-teleradiology .patient-portal-viewer .metadata-label.primary-label {
+  color: #d4af37 !important; /* Vibrant gold for primary labels */
+}
+
+.patient-portal-viewer .metadata-value,
+.theme-teleradiology .patient-portal-viewer .metadata-value {
+  color: #ffffff !important; /* Absolute pure white */
+  font-weight: 800 !important;
+}
+
+.patient-portal-viewer .metadata-value-mono,
+.theme-teleradiology .patient-portal-viewer .metadata-value-mono {
+  color: #34d399 !important; /* High-contrast bright emerald for UIDs */
+  font-weight: 800 !important;
+}
+
+.patient-portal-viewer .clinical-history-text,
+.theme-teleradiology .patient-portal-viewer .clinical-history-text {
+  color: #ffffff !important; /* Absolute pure white */
+  font-weight: 700 !important;
+}
+
+/* Scoped dark-theme variables for high-contrast diagnostic viewports */
+.dicom-viewer-dark-scope {
+  --primary: #d4af37; /* Vibrant warm gold for high visibility labels and elements */
+  --primary-rgb: 212, 175, 55;
+  --secondary: #090a0f;
+  --accent: #d4af37;
+  --background: #020202;
+  --text-main: #ffffff; /* Guaranteed pure white text on dark workspace background */
+  --text-muted: #cbd5e1; /* Guaranteed high contrast light slate-300 for labels */
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-main: var(--text-main);
+  --color-muted: var(--text-muted);
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    @apply text-[var(--text-main)];
+    background: var(--background);
+    background: var(--background-gradient);
+    background-attachment: fixed;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-[var(--text-main)];
+  }
+
+  /* Elegant custom scrollbar styling for premium UI/UX (desktop only) */
+  @media (min-width: 1024px) {
+    *::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+      display: block;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: rgba(var(--primary-rgb), 0.25);
+      border-radius: 9999px;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      background: rgba(var(--primary-rgb), 0.5);
+    }
+
+    * {
+      -ms-overflow-style: auto;  /* IE and Edge */
+      scrollbar-width: thin;  /* Firefox */
+      scrollbar-color: rgba(var(--primary-rgb), 0.25) transparent; /* Firefox */
+    }
+  }
+
+  /* Completely hide scrollbars on mobile and tablet viewports to preserve space and rely on native touch scrolling */
+  @media (max-width: 1023px) {
+    *::-webkit-scrollbar {
+      display: none !important;
+    }
+    * {
+      -ms-overflow-style: none !important;  /* IE and Edge */
+      scrollbar-width: none !important;  /* Firefox */
+    }
+  }
+
+  /* Prevent automatic mobile zoom-in when input/select/textarea is focused on mobile viewports */
+  @media (max-width: 767px) {
+    input, select, textarea, .glass-input {
+      font-size: 16px !important;
+    }
+  }
+
+  select option {
+    color: #000000 !important;
+    background-color: #ffffff !important;
+  }
+}
+
+@layer components {
+  .nav-header-blur {
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    background-color: rgba(11, 15, 26, 0.65);
+    border-color: rgba(150, 126, 43, 0.18);
+  }
+  
+  .theme-teleradiology .nav-header-blur {
+    background-color: rgba(240, 240, 243, 0.82);
+    border-color: rgba(150, 126, 43, 0.2);
+  }
+
+  .glass-panel {
+    @apply backdrop-blur-lg border rounded-2xl shadow-2xl;
+    background-color: var(--glass-bg);
+    border-color: var(--glass-border);
+  }
+  
+  .glass-btn {
+    @apply px-4 py-2 rounded-xl transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .glass-input {
+    @apply border rounded-xl px-4 py-2 transition-all outline-none;
+    background-color: rgba(var(--primary-rgb), 0.05);
+    border-color: var(--glass-border);
+    color: var(--text-main);
+  }
+
+  .glass-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Custom styles for ReactQuill Theme Support */
+.quill-dark .ql-toolbar {
+  background: var(--glass-bg) !important;
+  border-color: var(--glass-border) !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+.quill-dark .ql-container {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-main) !important;
+  font-family: inherit !important;
+}
+
+.quill-dark .ql-editor {
+  min-height: 100px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.quill-light .ql-toolbar {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+.quill-light .ql-container {
+  background: #ffffff !important;
+  border: none !important;
+  color: #000000 !important;
+  font-family: inherit !important;
+}
+
+.quill-light .ql-editor {
+  min-height: 100px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.ql-findings .ql-editor {
+  min-height: 300px;
+}
+
+.quill-dark .ql-stroke {
+  stroke: var(--text-muted) !important;
+}
+
+.quill-dark .ql-fill {
+  fill: var(--text-muted) !important;
+}
+
+.quill-dark .ql-picker {
+  color: var(--text-muted) !important;
+}
+
+.quill-dark .ql-editor.ql-blank::before {
+  color: var(--text-muted) !important;
+  opacity: 0.4;
+  font-style: italic !important;
+}
+
+.quill-light .ql-stroke {
+  stroke: #64748b !important;
+}
+
+.quill-light .ql-fill {
+  fill: #64748b !important;
+}
+
+.quill-light .ql-picker {
+  color: #64748b !important;
+}
+
+.quill-light .ql-editor.ql-blank::before {
+  color: #94a3b8 !important;
+  opacity: 0.8;
+  font-style: italic !important;
+}

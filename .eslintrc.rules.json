@@ -1,0 +1,6 @@
+{
+  "plugins": ["@firebase/security-rules"],
+  "rules": {
+    "@firebase/security-rules/no-allow-all": "error"
+  }
+}
