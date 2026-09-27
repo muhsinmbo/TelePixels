@@ -10,6 +10,7 @@ dotenv.config();
 dotenv.config({ path: path.join(process.cwd(), "backend", ".env") });
 
 import { backendRouter } from "./backend/src/routes/index";
+import { notFound, errorHandler } from "./backend/src/middleware/errors";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -103,6 +104,10 @@ async function startServer() {
       res.status(500).send("Failed to retrieve image.");
     }
   });
+
+  // JSON 404/errors for unknown API paths (after all /api routes, before SPA)
+  app.use('/api', notFound);
+  app.use(errorHandler);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

@@ -30,7 +30,7 @@ disk folder locally and becomes R2 (S3 API) in prod — identical `GET /uploads/
    Expected: `[seed] schema ok / superadmin ok / pricing ok / settings ok / DONE`.
 5. Run:
    ```powershell
-   npx tsx src/app.ts   # → http://localhost:4500/health
+   npx tsx src/app.ts   # → http://localhost:4000/health
    ```
    Anyone, anywhere, points their own `DATABASE_URL` at the same Neon project and gets the same data.
    Change the superadmin password right after first login (`PATCH /api/users/superadmin-01`).
@@ -45,7 +45,7 @@ backend/
 │   │   ├── db.ts              # pg Pool (Neon SSL auto), fail-fast, NO memory fallback
 │   │   ├── migrate.ts         # npm run db:migrate (schema only)
 │   │   ├── seed.ts            # npm run db:seed (schema + facility + superadmin + pricing)
-│   │   └── memoryDb.ts        # LEGACY, unused by routes — delete after frontend migrates off compat.ts
+  │   │   └── (no mocks — deleted memoryDb.ts / compat.ts; every read/write is Postgres)
 │   ├── middleware/
 │   │   ├── auth.ts            # requireAuth (JWT) + requireRole + facilityScope — no bypasses
 │   │   ├── validate.ts        # allowlist validators (shadow-field / length / enum / state guards)
@@ -65,10 +65,21 @@ backend/
 └── scripts/test-api.ps1       # end-to-end workflow test, no frontend needed
 ```
 
+## Demo data (team click-through + hackathon)
+```powershell
+npm run db:seed:demo   # idempotent: skips existing, resets demo requests to Pending
+npm run db:wipe:demo   # removes exactly the demo rows, never touches real data
+```
+Staff (all password `Demo123!`, override with `DEMO_PASSWORD=`):
+`radiologist@` / `sonographer@` / `radiographer@` / `receptionist@kingsimaging.org`.
+Showcase patients: **Amina Yusuf 32F pelvic US** (live AI-demo case, `DEMO-0001`/`AMINA1`),
+Kwame Mensah 55M urgent chest X-ray, Efua Owusu 28F obstetric US, Yaw Boateng 40M with a
+completed history report + fresh study (previous-reports demo, `DEMO-0004`/`YAW004`).
+
 ## Test the whole workflow (no frontend)
 ```powershell
 cd backend
-$env:API='http://localhost:4500'; $env:EMAIL='admin@kingsimaging.org'; $env:PASS='<your seed password>'
+$env:API='http://localhost:4000'; $env:EMAIL='admin@kingsimaging.org'; $env:PASS='<your seed password>'
 .\scripts\test-api.ps1
 ```
 Covers: health → login → me → bad-token 401 → patient → request → image →

@@ -83,6 +83,17 @@ usersRouter.patch('/users/:uid', async (req: Request, res: Response) => {
     if ((cols as any)[k] !== undefined) { vals.push((cols as any)[k]); sets.push(`${col} = $${vals.length}`); }
   }
   if (Object.keys(meta).length) { vals.push(JSON.stringify(meta)); sets.push(`meta = meta || $${vals.length}::jsonb`); }
+  // Password change: self-service or superadmin. Never returned in responses.
+  if (req.body.password !== undefined) {
+    if (req.user!.id !== uid && req.user!.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Cannot change another user\u2019s password' });
+    }
+    if (typeof req.body.password !== 'string' || req.body.password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+    vals.push(await bcrypt.hash(req.body.password, 12));
+    sets.push(`password_hash = $${vals.length}`);
+  }
   if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
   vals.push(uid);
   const rows = await dbQuery<any>(

@@ -9,7 +9,9 @@
     "build": "tsc",
     "start": "node dist/app.js",
     "db:migrate": "tsx src/database/migrate.ts",
-    "db:seed": "tsx src/database/seed.ts"
+    "db:seed": "tsx src/database/seed.ts",
+    "db:seed:demo": "tsx src/database/seedDemo.ts",
+    "db:wipe:demo": "tsx src/database/wipeDemo.ts"
   },
   "keywords": [
     "teleradiology",

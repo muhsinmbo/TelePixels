@@ -182,7 +182,7 @@ export const BUCKET_NAME = 'studies';
 export const supabase = {
   storage: {
     from: (_bucket: string) => ({
-      async upload(path: string, file: File | Blob) {
+      async upload(path: string, file: File | Blob, _options?: { contentType?: string; upsert?: boolean }) {
         const res = await api.storage.upload(path, file);
         urlByRequestedPath.set(path, res.publicUrl);
         return { data: { path: res.storagePath }, error: null };
@@ -406,9 +406,10 @@ export async function getDocFromServer(ref: DocRef) { return getDoc(ref); }
 
 export async function getDocs(qOrColl: CollectionRef | QueryDef) {
   const items = qOrColl.type === 'query' ? await fetchQuery(qOrColl) : await fetchCollection(qOrColl);
+  const docs = items.map((it) => ({ id: it.id, ref: it.ref, data: () => it.data, exists: () => true }));
   return {
-    empty: items.length === 0, size: items.length,
-    docs: items.map((it) => ({ id: it.id, ref: it.ref, data: () => it.data, exists: () => true })),
+    empty: items.length === 0, size: items.length, docs,
+    forEach: (fn: (d: any) => void) => docs.forEach(fn),
   };
 }
 

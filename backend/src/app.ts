@@ -8,7 +8,7 @@ import { assertDbConnected } from './database/db';
 import { notFound, errorHandler } from './middleware/errors';
 
 export const app = express();
-const PORT = Number(process.env.PORT || 4500);
+const PORT = Number(process.env.PORT || 4000);
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://127.0.0.1:3000')
   .split(',').map((o) => o.trim()).filter(Boolean);
 

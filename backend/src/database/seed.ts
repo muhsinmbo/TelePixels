@@ -50,20 +50,26 @@ async function main() {
      'Saint Charles Road (Before Attaesibi Hotel), Tamale, Northern Region, Ghana']
   );
 
-  // 3. Superadmin (real bcrypt password — NO bypass logins anymore)
+  // 3. Superadmin (real bcrypt password — NO bypass logins anymore).
+  // Re-running seed never resets an existing password (change it via PATCH /users/:uid).
   const email = (process.env.SEED_SUPERADMIN_EMAIL || 'admin@kingsimaging.org').toLowerCase();
-  const plain = process.env.SEED_SUPERADMIN_PASSWORD || 'ChangeMe123!';
-  if (!process.env.SEED_SUPERADMIN_PASSWORD) {
-    console.warn('[seed] WARNING: SEED_SUPERADMIN_PASSWORD not set — using temp "ChangeMe123!". Change it after first login.');
+  const existing = await pool.query('SELECT id FROM users WHERE lower(email) = lower($1)', [email]);
+  if (!existing.rows[0]) {
+    const plain = process.env.SEED_SUPERADMIN_PASSWORD || 'ChangeMe123!';
+    if (!process.env.SEED_SUPERADMIN_PASSWORD) {
+      console.warn('[seed] WARNING: SEED_SUPERADMIN_PASSWORD not set — using temp "ChangeMe123!". Change it after first login.');
+    }
+    const password_hash = await bcrypt.hash(plain, 12);
+    await pool.query(
+      `INSERT INTO users (id, email, password_hash, display_name, role, status, facility_id)
+       VALUES ('superadmin-01', $1, $2, 'System Administrator', 'superadmin', 'active', $3)`,
+      [email, password_hash, FACILITY_ID]
+    );
+    console.log(`[seed] superadmin created: ${email}`);
+  } else {
+    await pool.query(`UPDATE users SET status = 'active' WHERE lower(email) = lower($1)`, [email]);
+    console.log(`[seed] superadmin exists (password untouched): ${email}`);
   }
-  const password_hash = await bcrypt.hash(plain, 12);
-  await pool.query(
-    `INSERT INTO users (id, email, password_hash, display_name, role, status, facility_id)
-     VALUES ('superadmin-01', $1, $2, 'System Administrator', 'superadmin', 'active', $3)
-     ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = 'active'`,
-    [email, password_hash, FACILITY_ID]
-  );
-  console.log(`[seed] superadmin ok: ${email}`);
 
   // 4. Pricing
   for (const [partName, price] of PRICING) {

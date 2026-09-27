@@ -11,6 +11,25 @@ import {
 
 type Listener = (data: any) => void;
 
+export interface AIStudyContext {
+  requestId: string; patientId: string;
+  patientAge: number | null; patientSex: string | null;
+  modality: string; examination: string; bodyPart: string | null;
+  clinicalHistory: string | null; radiographerHistory: string | null;
+  priority: string; status: string;
+}
+
+export interface AIReportTemplate {
+  id: string; title: string; modality: string; examination: string;
+  sections: Array<{ key: string; title: string; placeholder: string }>;
+  impressionGuidance: string; matchLevel: 'exact' | 'modality-exam' | 'generic';
+}
+
+export interface AIPreviousReport {
+  id: string; requestId: string; findings: string; impression: string;
+  comparison?: string; radiologistName: string; createdAt: string;
+}
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
 const resolveApiUrl = (endpoint: string) => {
@@ -364,6 +383,38 @@ export const api = {
       }>('/api/portal/verify', {
         method: 'POST',
         body: JSON.stringify({ mrn, accessCode }),
+      });
+    }
+  },
+
+  // Context-aware AI-assisted reporting (human-in-the-loop)
+  ai: {
+    async context(patientId: string, requestId: string): Promise<AIStudyContext> {
+      return request<AIStudyContext>(`/api/ai/context?patientId=${encodeURIComponent(patientId)}&requestId=${encodeURIComponent(requestId)}`);
+    },
+
+    async template(modality: string, examination: string, sex?: string | null): Promise<AIReportTemplate> {
+      const q = new URLSearchParams({ modality, examination });
+      if (sex) q.set('sex', sex);
+      return request<AIReportTemplate>(`/api/ai/templates?${q.toString()}`);
+    },
+
+    async previousReports(patientId: string, excludeRequestId: string, limit = 5): Promise<AIPreviousReport[]> {
+      const q = new URLSearchParams({ patientId, excludeRequestId, limit: String(limit) });
+      return request<AIPreviousReport[]>(`/api/ai/previous-reports?${q.toString()}`);
+    },
+
+    async draft(patientId: string, requestId: string): Promise<{ template: AIReportTemplate; context: AIStudyContext; skeleton: string | null; modelDisabled: boolean }> {
+      return request<{ template: AIReportTemplate; context: AIStudyContext; skeleton: string | null; modelDisabled: boolean }>('/api/ai/draft', {
+        method: 'POST',
+        body: JSON.stringify({ patientId, requestId }),
+      });
+    },
+
+    async polish(patientId: string, requestId: string, findings: string, includePrevious = false) {
+      return request<{ polished: string; templateId: string | null }>('/api/ai/polish', {
+        method: 'POST',
+        body: JSON.stringify({ patientId, requestId, findings, includePrevious }),
       });
     }
   }

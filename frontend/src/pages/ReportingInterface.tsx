@@ -9,6 +9,7 @@ import { cn } from '../lib/utils';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { logAction } from '../services/loggerService';
 import { StudyTakeoverModal } from '../components/StudyTakeoverModal';
+import AIAssistantPanel from '../components/AIAssistantPanel';
 
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
@@ -864,6 +865,20 @@ export default function ReportingInterface() {
           </div>
 
           <div className="space-y-8">
+            {selectedRequest && selectedProcedureIdx !== -1 && (
+              <AIAssistantPanel
+                patientId={selectedRequest.patientId}
+                requestId={selectedRequest.id}
+                currentFindings={report.findings}
+                onApply={(findings, impression) =>
+                  setReport((prev) => ({
+                    ...prev,
+                    findings: findings || prev.findings,
+                    impression: impression || prev.impression,
+                  }))
+                }
+              />
+            )}
             <div className="glass-panel p-8">
               <h2 className="text-xl font-bold mb-6">Study Info</h2>
               <div className="space-y-4 text-sm">
