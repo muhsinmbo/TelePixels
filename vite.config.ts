@@ -15,12 +15,12 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'frontend/src'),
-        'firebase/firestore': path.resolve(__dirname, 'frontend/src/api/compat.ts'),
-        'firebase/auth': path.resolve(__dirname, 'frontend/src/api/compat.ts'),
-        'firebase/storage': path.resolve(__dirname, 'frontend/src/api/compat.ts'),
-        'firebase/app': path.resolve(__dirname, 'frontend/src/api/compat.ts'),
-        'firebase': path.resolve(__dirname, 'frontend/src/api/compat.ts'),
-        '@supabase/supabase-js': path.resolve(__dirname, 'frontend/src/api/compat.ts'),
+        'firebase/firestore': path.resolve(__dirname, 'frontend/src/api/live.ts'),
+        'firebase/auth': path.resolve(__dirname, 'frontend/src/api/live.ts'),
+        'firebase/storage': path.resolve(__dirname, 'frontend/src/api/live.ts'),
+        'firebase/app': path.resolve(__dirname, 'frontend/src/api/live.ts'),
+        'firebase': path.resolve(__dirname, 'frontend/src/api/live.ts'),
+        '@supabase/supabase-js': path.resolve(__dirname, 'frontend/src/api/live.ts'),
       },
     },
     server: {

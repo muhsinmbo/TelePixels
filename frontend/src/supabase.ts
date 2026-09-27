@@ -1,5 +1,4 @@
 /**
- * Native TelePixels DICOM & Study Storage Adapter
- * Replaces Supabase Storage with native high-performance decoupled storage.
+ * STANDARD BUILD — storage uploads go to POST /api/storage/upload (live).
  */
-export { supabase, BUCKET_NAME } from './api/compat';
+export { supabase, BUCKET_NAME } from './api/live';

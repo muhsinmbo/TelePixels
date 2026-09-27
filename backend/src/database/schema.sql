@@ -15,16 +15,22 @@ CREATE TABLE IF NOT EXISTS facilities (
 );
 
 -- 2. Users & Staff Members
-CREATE TYPE user_role_enum AS ENUM (
-    'superadmin', 
-    'facilityadmin', 
-    'radiologist', 
-    'radiographer', 
-    'sonographer', 
-    'receptionist'
-);
+DO $$ BEGIN
+  CREATE TYPE user_role_enum AS ENUM (
+      'superadmin',
+      'facilityadmin',
+      'radiologist',
+      'radiographer',
+      'sonographer',
+      'receptionist'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE user_status_enum AS ENUM ('active', 'inactive');
+DO $$ BEGIN
+  CREATE TYPE user_status_enum AS ENUM ('active', 'inactive');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(64) PRIMARY KEY,
@@ -48,7 +54,10 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_facility ON users(facility_id);
 
 -- 3. Patients Demographics
-CREATE TYPE gender_enum AS ENUM ('Male', 'Female', 'Other');
+DO $$ BEGIN
+  CREATE TYPE gender_enum AS ENUM ('Male', 'Female', 'Other');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS patients (
     id VARCHAR(64) PRIMARY KEY,
@@ -71,14 +80,20 @@ CREATE INDEX IF NOT EXISTS idx_patients_mrn ON patients(mrn);
 CREATE INDEX IF NOT EXISTS idx_patients_access_code ON patients(access_code);
 
 -- 4. Imaging Requests
-CREATE TYPE request_status_enum AS ENUM (
-    'Pending', 
-    'Images Uploaded', 
-    'In Progress', 
-    'Completed'
-);
+DO $$ BEGIN
+  CREATE TYPE request_status_enum AS ENUM (
+      'Pending',
+      'Images Uploaded',
+      'In Progress',
+      'Completed'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE priority_enum AS ENUM ('routine', 'urgent', 'STAT');
+DO $$ BEGIN
+  CREATE TYPE priority_enum AS ENUM ('routine', 'urgent', 'STAT');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS imaging_requests (
     id VARCHAR(64) PRIMARY KEY,
@@ -193,3 +208,13 @@ CREATE TABLE IF NOT EXISTS system_settings (
     value JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 11. Client-extras escape hatch (STANDARD BUILD).
+-- The frontend stores workflow extras (physician phones, priced procedures,
+-- radiographer names, report drafts metadata...) on documents. Instead of a
+-- migration per field, unknown keys ride in meta and are merged back on read.
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE imaging_requests ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE study_images ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;

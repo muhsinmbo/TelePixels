@@ -1,8 +1,14 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
+
+// Load root .env first, then backend/.env (backend values win for DB/auth keys)
+dotenv.config();
+dotenv.config({ path: path.join(process.cwd(), "backend", ".env") });
+
 import { backendRouter } from "./backend/src/routes/index";
 
 const __filename = fileURLToPath(import.meta.url);

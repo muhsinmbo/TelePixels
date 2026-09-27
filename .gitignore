@@ -6,5 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
-.env.example
-.env
+.neon
+uploads/

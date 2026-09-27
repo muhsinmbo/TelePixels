@@ -4,8 +4,7 @@ import { useAuth, REVIEWER_CREDENTIALS } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogIn, ShieldCheck, Key, Lock, Eye, EyeOff, Copy, Check, ArrowRight } from 'lucide-react';
 import BrandLogo from '../components/BrandLogo';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { api } from '../api/apiClient';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -21,6 +20,12 @@ export default function Login() {
   const [isSubmittingReviewer, setIsSubmittingReviewer] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  // Staff email/password form state (real backend auth)
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [showStaffPassword, setShowStaffPassword] = useState(false);
+  const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
 
   const [isVisible, setIsVisible] = React.useState(true);
   const movementRef = React.useRef({ x: 0, y: 0, accumulated: 0 });
@@ -59,17 +64,11 @@ export default function Login() {
   }, [isVisible]);
 
   React.useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'systemSettings', 'global'), (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        if (data.theme) {
-          setTheme(data.theme);
-        }
-      }
-    }, (error) => {
-      console.warn('Login settings listener failed:', error);
-    });
-    return () => unsub();
+    let cancelled = false;
+    api.settings.getGlobal()
+      .then((s) => { if (!cancelled && s.theme) setTheme(s.theme); })
+      .catch((error) => console.warn('Login settings fetch failed:', error));
+    return () => { cancelled = true; };
   }, []);
 
   React.useEffect(() => {
@@ -79,6 +78,24 @@ export default function Login() {
       document.body.classList.remove('theme-teleradiology');
     }
   }, [theme]);
+
+  const handleStaffSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLocalError(null);
+    setIsSubmittingStaff(true);
+    try {
+      const res = await login(staffEmail, staffPassword);
+      if (!res.success) {
+        setLocalError(res.error || 'Invalid email or password.');
+      } else {
+        toast.success('Welcome back');
+      }
+    } catch (err: any) {
+      setLocalError(err.message || 'An error occurred during login.');
+    } finally {
+      setIsSubmittingStaff(false);
+    }
+  };
 
   const handleReviewerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,7 +221,7 @@ export default function Login() {
         )}
 
         <AnimatePresence mode="wait">
-          {/* PROCEDURE 1: Regular Google OAuth Flow */}
+          {/* PROCEDURE 1: Staff email + password (real backend) */}
           {activeTab === 'google' && (
             <motion.div
               key="google-flow"
@@ -217,17 +234,69 @@ export default function Login() {
               <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 text-center space-y-2">
                 <p className="text-xs font-medium text-white/90">Clinical & Administrative Personnel</p>
                 <p className="text-[11px] text-muted">
-                  Use your authorized Google account to authenticate into the clinical diagnostic portal.
+                  Sign in with your staff email and password to access the clinical diagnostic portal.
                 </p>
               </div>
 
-              <button 
-                onClick={login}
-                className="glass-btn bg-primary text-black font-bold w-full py-3.5 flex items-center justify-center gap-2.5 hover:bg-primary/85 transition-all shadow-lg active:scale-[0.99] cursor-pointer"
-              >
-                <LogIn className="w-5 h-5" />
-                <span>Sign in with Google</span>
-              </button>
+              <form onSubmit={handleStaffSubmit} className="space-y-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5">
+                    Staff Email
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={staffEmail}
+                      onChange={(e) => setStaffEmail(e.target.value)}
+                      placeholder="you@facility.org"
+                      required
+                      className="w-full bg-black/30 border border-white/15 focus:border-primary rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/30 focus:outline-none transition-colors"
+                    />
+                    <Key className="w-4 h-4 text-white/30 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showStaffPassword ? 'text' : 'password'}
+                      value={staffPassword}
+                      onChange={(e) => setStaffPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      className="w-full bg-black/30 border border-white/15 focus:border-primary rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/30 focus:outline-none transition-colors pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowStaffPassword(!showStaffPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors cursor-pointer"
+                    >
+                      {showStaffPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingStaff}
+                  className="glass-btn bg-primary text-black font-bold w-full py-3.5 flex items-center justify-center gap-2.5 hover:bg-primary/85 transition-all shadow-lg active:scale-[0.99] cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingStaff ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                      <span>Signing in...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="w-5 h-5" />
+                      <span>Sign in</span>
+                    </>
+                  )}
+                </button>
+              </form>
 
               <div className="pt-2 text-center">
                 <button

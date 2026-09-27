@@ -1,40 +1,84 @@
-# TelePixels Backend Workspace
+# TelePixels Backend — STANDARD BUILD (real Postgres, no mocks)
 
-Welcome to the backend workspace for **TelePixels**!
-All Firebase and Supabase dependencies have been completely removed from this repository. The frontend has been cleanly grouped in `/frontend` and decoupled via a clean REST/Storage API client in `frontend/src/api/`.
+## Stack (free, no Docker needed)
+| Need | Choice | Free tier |
+|---|---|---|
+| Postgres (local + shared testing anywhere) | **Neon** (`neon.tech`) | 3 projects, 0.5 GB each |
+| File uploads (DICOM/images/PDFs) | Local disk `./uploads` | unlimited local |
+| Object storage later (prod) | Cloudflare R2 | 10 GB free |
+| Auth | bcrypt + JWT (own code, zero vendor) | free forever |
 
-## Directory Overview
+Why not Supabase: same Postgres power via Neon without the BaaS lock-in; storage stays a plain
+disk folder locally and becomes R2 (S3 API) in prod — identical `GET /uploads/:file` shape.
+
+## Neon setup (5 min, one time)
+1. Sign up at `https://neon.tech` → New Project → name `telepixels`, region closest to you.
+2. Dashboard → **Connection Details** → copy the **pooled** connection string. Keep `?sslmode=require`.
+3. `Copy-Item .env.example .env`, then set:
+   ```env
+   DATABASE_URL=postgresql://USER:PASSWORD@ep-xxx.aws.neon.tech/telepixels_db?sslmode=require
+   JWT_SECRET=<32+ random hex: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
+   SEED_SUPERADMIN_EMAIL=admin@kingsimaging.org
+   SEED_SUPERADMIN_PASSWORD=<strong temp password>
+   ```
+4. Migrate + seed:
+   ```powershell
+   cd backend
+   npm install
+   npm run db:seed
+   ```
+   Expected: `[seed] schema ok / superadmin ok / pricing ok / settings ok / DONE`.
+5. Run:
+   ```powershell
+   npx tsx src/app.ts   # → http://localhost:4500/health
+   ```
+   Anyone, anywhere, points their own `DATABASE_URL` at the same Neon project and gets the same data.
+   Change the superadmin password right after first login (`PATCH /api/users/superadmin-01`).
+
+## Layout
 ```
 backend/
 ├── src/
+│   ├── app.ts                 # entry: CORS, /uploads static, /health, error handler
 │   ├── database/
-│   │   ├── schema.sql      # Full PostgreSQL schema with DDL, constraints & indexes
-│   │   └── memoryDb.ts     # In-memory mock engine with default seed data
-│   ├── routes/
-│   │   └── index.ts        # Modular Express REST API routes
-│   └── app.ts              # Standalone Express app entry point
-├── .env.example            # Environment variables template
-├── package.json            # Backend dependencies and scripts
-└── tsconfig.json           # Backend TypeScript configuration
+│   │   ├── schema.sql         # Postgres DDL (source of truth)
+│   │   ├── db.ts              # pg Pool (Neon SSL auto), fail-fast, NO memory fallback
+│   │   ├── migrate.ts         # npm run db:migrate (schema only)
+│   │   ├── seed.ts            # npm run db:seed (schema + facility + superadmin + pricing)
+│   │   └── memoryDb.ts        # LEGACY, unused by routes — delete after frontend migrates off compat.ts
+│   ├── middleware/
+│   │   ├── auth.ts            # requireAuth (JWT) + requireRole + facilityScope — no bypasses
+│   │   ├── validate.ts        # allowlist validators (shadow-field / length / enum / state guards)
+│   │   └── errors.ts          # { error } shape + audit() append-only logger
+│   └── routes/
+│       ├── index.ts           # aggregator only
+│       ├── auth.ts            # login (bcrypt) / me / logout
+│       ├── users.ts           # staff CRUD (admin provision, superadmin role changes)
+│       ├── patients.ts        # intake CRUD (facility-scoped, mrn unique+immutable)
+│       ├── requests.ts        # worklists (patient must exist; Completed only via report)
+│       ├── images.ts          # study-image records (flips request → Images Uploaded)
+│       ├── reports.ts         # radiology (radiologist-only) + ultrasound worksheets (sonographer)
+│       ├── pricing.ts         # propose (admin) / approve (superadmin)
+│       ├── system.ts          # settings/global + append-only logs (superadmin read)
+│       ├── portal.ts          # public MRN+code verify (rate-limited) — the ONLY open route
+│       └── storage.ts         # multer disk uploads → { publicUrl, storagePath }
+└── scripts/test-api.ps1       # end-to-end workflow test, no frontend needed
 ```
 
-## Quick Start for Backend Collaborators
-1. Install dependencies:
-   ```bash
-   cd backend
-   npm install
-   ```
-2. Copy environment file:
-   ```bash
-   cp .env.example .env
-   ```
-3. Run the PostgreSQL schema:
-   ```bash
-   psql -d telepixels_db -f src/database/schema.sql
-   ```
-4. Start backend in development mode:
-   ```bash
-   npm run dev
-   ```
+## Test the whole workflow (no frontend)
+```powershell
+cd backend
+$env:API='http://localhost:4500'; $env:EMAIL='admin@kingsimaging.org'; $env:PASS='<your seed password>'
+.\scripts\test-api.ps1
+```
+Covers: health → login → me → bad-token 401 → patient → request → image →
+request flips → report finalize → request Completed → portal verify → audit logs.
 
-Refer to `/BACKEND_DIRECTIVES.md` at the project root for the complete API catalog, payload schemas, storage architecture, and RBAC matrix.
+## API quick map
+`POST /api/auth/login` · `GET /api/auth/me` · `GET/POST /api/users` · `PATCH/DELETE /api/users/:uid`
+`GET/POST /api/patients` · `GET/PATCH/DELETE /api/patients/:id`
+`GET /api/requests` · `GET/POST /api/patients/:pId/requests` · `GET/PATCH /api/patients/:pId/requests/:rId`
+`GET/POST /api/patients/:pId/requests/:rId/images` · `POST /api/storage/upload`
+`GET/POST/PATCH .../reports` (+ `:reportId`) · `GET/POST .../ultrasound-reports`
+`GET/PUT /api/facilities/:facId/pricing/:partName` · `GET/PATCH /api/settings/global`
+`GET/POST /api/logs` · `POST /api/portal/verify` (public)
