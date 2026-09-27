@@ -43,3 +43,13 @@ imagesRouter.post('/patients/:patientId/requests/:requestId/images', Validators.
   await audit(req, 'IMAGE_ADD', `Added image ${id} to ${req.params.requestId}`, id);
   res.status(201).json(withMeta(rows[0]));
 });
+
+imagesRouter.delete('/patients/:patientId/requests/:requestId/images/:imageId', async (req: Request, res: Response) => {
+  if (!['superadmin', 'facilityadmin', 'radiographer', 'sonographer'].includes(req.user!.role))
+    return res.status(403).json({ error: 'Upload roles only' });
+  const rows = await dbQuery('DELETE FROM study_images WHERE id = $1 AND request_id = $2 AND patient_id = $3 RETURNING id',
+    [req.params.imageId, req.params.requestId, req.params.patientId]);
+  if (!rows[0]) return res.status(404).json({ error: 'Image not found' });
+  await audit(req, 'IMAGE_DELETE', `Deleted image ${req.params.imageId}`, req.params.imageId);
+  res.status(204).send();
+});

@@ -20,6 +20,7 @@
     "express"
   ],
   "dependencies": {
+    "@google/genai": "^2.24.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

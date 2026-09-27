@@ -31,6 +31,14 @@ usersRouter.get('/users', requireRole('facilityadmin'), async (req: Request, res
   res.json(rows.map((u: any) => ({ ...withMeta(u), uid: u.id })));
 });
 
+usersRouter.get('/users/:uid', requireRole('facilityadmin'), async (req: Request, res: Response) => {
+  const rows = await dbQuery<any>(`SELECT ${SELECT} FROM users WHERE id = $1`, [req.params.uid]);
+  if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+  const scope = req.user!.role === 'superadmin' ? null : req.user!.facilityId;
+  if (scope && rows[0].facilityId !== scope) return res.status(403).json({ error: 'Cross-facility access denied' });
+  res.json({ ...withMeta(rows[0]), uid: rows[0].id });
+});
+
 usersRouter.post('/users', requireRole('facilityadmin'), Validators.userCreate, async (req: Request, res: Response) => {
   if (req.body.role === 'superadmin' && req.user!.role !== 'superadmin')
     return res.status(403).json({ error: 'Only superadmin can create superadmin' });

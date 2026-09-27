@@ -11,7 +11,7 @@ function pick(obj: any, allowed: string[]): any {
 }
 const tooLong = (v: unknown, max: number) => typeof v === 'string' && v.length > max;
 const GENDERS = ['Male', 'Female', 'Other'];
-const STATUSES = ['Pending', 'Images Uploaded', 'In Progress', 'Completed'];
+const STATUSES = ['Pending', 'Images Uploaded', 'In Progress', 'Partially Reported', 'Completed'];
 const PRIORITIES = ['routine', 'urgent', 'STAT'];
 
 const FORBIDDEN = new Set(['createdAt', 'created_at', 'updatedAt', 'updated_at', 'uid']);

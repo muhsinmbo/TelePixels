@@ -14,6 +14,7 @@ import { pricingRouter } from './pricing';
 import { systemRouter } from './system';
 import { portalRouter } from './portal';
 import { storageRouter } from './storage';
+import { aiRouter } from './ai';
 
 export const backendRouter = Router();
 
@@ -36,3 +37,4 @@ backendRouter.use(pricingRouter);
 backendRouter.use(systemRouter);
 backendRouter.use(portalRouter);
 backendRouter.use(storageRouter);
+backendRouter.use(aiRouter);

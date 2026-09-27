@@ -9,6 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
+import { TEMPLATES } from '../ai/templates';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,7 +76,19 @@ async function main() {
   }
   console.log('[seed] pricing ok');
 
-  // 5. Global settings
+  // 5. AI reporting templates
+  for (const t of TEMPLATES) {
+    await pool.query(
+      `INSERT INTO report_templates (id, modality, examination, sex, title, sections, impression_guidance)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, sections = EXCLUDED.sections,
+         impression_guidance = EXCLUDED.impression_guidance, is_active = TRUE`,
+      [t.id, t.modality, t.examination, t.sex, t.title, JSON.stringify(t.sections), t.impressionGuidance]
+    );
+  }
+  console.log('[seed] templates ok');
+
+  // 6. Global settings
   await pool.query(
     `INSERT INTO system_settings (key, value) VALUES ('global', $1)
      ON CONFLICT (key) DO NOTHING`,

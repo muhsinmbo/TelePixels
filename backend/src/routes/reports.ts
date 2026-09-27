@@ -98,6 +98,23 @@ reportsRouter.post('/patients/:patientId/requests/:requestId/ultrasound-reports'
     res.status(201).json(rows[0]);
   });
 
+reportsRouter.patch('/patients/:patientId/requests/:requestId/ultrasound-reports/:worksheetId',
+  requireRole('sonographer'), async (req: Request, res: Response) => {
+    const b = req.body || {};
+    const sets: string[] = []; const vals: any[] = [];
+    if (b.findings !== undefined) { vals.push(JSON.stringify(b.findings)); sets.push(`findings = $${vals.length}::jsonb`); }
+    if (b.measurements !== undefined) { vals.push(JSON.stringify(b.measurements)); sets.push(`measurements = $${vals.length}::jsonb`); }
+    if (b.clinicalImpression !== undefined) { vals.push(b.clinicalImpression); sets.push(`clinical_impression = $${vals.length}`); }
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+    vals.push(req.params.worksheetId);
+    const rows = await dbQuery<any>(
+      `UPDATE ultrasound_reports SET ${sets.join(', ')} WHERE id = $${vals.length}
+       RETURNING id, request_id AS "requestId", clinical_impression AS "clinicalImpression"`, vals);
+    if (!rows[0]) return res.status(404).json({ error: 'Worksheet not found' });
+    await audit(req, 'ULTRASOUND_AMEND', `Amended worksheet ${req.params.worksheetId}`, req.params.worksheetId);
+    res.json(rows[0]);
+  });
+
 reportsRouter.get('/patients/:patientId/requests/:requestId/ultrasound-reports', async (req: Request, res: Response) => {
   res.json(await dbQuery(
     `SELECT id, request_id AS "requestId", patient_id AS "patientId",

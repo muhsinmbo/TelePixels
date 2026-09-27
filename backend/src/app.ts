@@ -48,6 +48,10 @@ app.use('/api', backendRouter);
 app.use(notFound);
 app.use(errorHandler);
 
+process.on('unhandledRejection', (reason: any) => {
+  console.error('[api] unhandled rejection:', reason?.message || reason);
+});
+
 if (process.env.NODE_ENV !== 'test' && !process.env.AIS_EMBEDDED) {
   assertDbConnected().then(
     () => app.listen(PORT, '0.0.0.0', () => console.log(`TelePixels Backend (Postgres) on http://localhost:${PORT}`)),

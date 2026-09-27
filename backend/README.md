@@ -82,3 +82,15 @@ request flips → report finalize → request Completed → portal verify → au
 `GET/POST/PATCH .../reports` (+ `:reportId`) · `GET/POST .../ultrasound-reports`
 `GET/PUT /api/facilities/:facId/pricing/:partName` · `GET/PATCH /api/settings/global`
 `GET/POST /api/logs` · `POST /api/portal/verify` (public)
+
+## AI-assisted reporting (human-in-the-loop, key-optional)
+The model only sees what the controlled tools return — never the database
+(`backend/src/ai/tools.ts` maps 1:1 to future MCP tools). Every AI call is audited.
+Without `GEMINI_API_KEY` (free at `https://aistudio.google.com/apikey`), data routes
+work and `/ai/draft` returns the template structure; model routes answer `503`.
+
+`GET /api/ai/context?patientId=&requestId=` · `GET /api/ai/templates?modality=&examination=&sex=`
+`GET /api/ai/previous-reports?patientId=&excludeRequestId=` (secondary history, never primary)
+`POST /api/ai/draft { patientId, requestId }` (structure skeleton, no invented findings)
+`POST /api/ai/polish { patientId, requestId, findings, includePrevious? }` (Findings + Impression)
+Draft/polish require `radiologist` or `sonographer` role. The clinician always reviews and finalizes.
