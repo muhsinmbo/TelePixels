@@ -155,7 +155,7 @@ const LandingPage: React.FC = () => {
         style={{ '--text-main': '#000000', '--text-muted': '#423714', '--color-main': '#000000', '--color-primary': '#000000', '--primary': '#000000', '--primary-rgb': '0,0,0' } as React.CSSProperties}
         className={cn(
           'fixed left-0 right-0 top-0 z-50 text-black transition-all duration-300',
-          scrolled ? 'border-b border-slate-200 bg-white/10 py-3 backdrop-blur-sm' : 'py-5'
+          scrolled ? 'border-b border-slate-200 bg-white/90 py-3 backdrop-blur-md' : 'py-5'
         )}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 lg:px-8">
