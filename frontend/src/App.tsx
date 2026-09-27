@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } f
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
+import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import PatientIntake from './pages/PatientIntake';
 import PatientPortal from './pages/PatientPortal';
@@ -108,6 +109,29 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode, roles?
   );
 }
 
+function HomeRoute() {
+  const { user, profile, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[var(--background-gradient)]">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-primary font-mono animate-pulse">Initializing TelePixels…</p>
+      </div>
+    );
+  }
+
+  if (user && profile) {
+    return (
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    );
+  }
+
+  return <LandingPage />;
+}
+
 export default function App() {
   React.useEffect(() => {
     // Pricing seeding moved to AuthContext to ensure auth is ready
@@ -121,19 +145,15 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/portal" element={<PatientPortal />} />
           <Route path="/portal/:mrn/:code" element={<PatientPortal />} />
-          
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          
+
+          <Route path="/" element={<HomeRoute />} />
+
           <Route path="/intake" element={
             <ProtectedRoute roles={['receptionist', 'facilityadmin', 'superadmin']}>
               <PatientIntake />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/patients" element={
             <ProtectedRoute>
               <PatientList />
