@@ -1,5 +1,4 @@
-import { doc, setDoc, getDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc, setDoc, getDoc, collection, getDocs, serverTimestamp, db } from '../firebase';
 
 const DEFAULT_PRICING = [
   // X-Ray Procedures

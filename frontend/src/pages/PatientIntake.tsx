@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, setDoc, collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../api/apiClient';
 import { toast } from 'react-hot-toast';
 import { generateId, cn, formatGhanaPhoneNumber } from '../lib/utils';
 import { UserPlus, ClipboardList, Printer, Search, X, Banknote, Activity, CheckCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { logAction } from '../services/loggerService';
 import ReceiptModal from '../components/ReceiptModal';
 
@@ -30,35 +28,28 @@ export default function PatientIntake() {
   const [expandSpecialProcedures, setExpandSpecialProcedures] = useState(false);
   const [facilityInfo, setFacilityInfo] = useState({ name: '', logo: '', letterhead: '' });
   
-  React.useEffect(() => {
-    const facilityId = 'default-facility';
-    console.log('PatientIntake: Listening to pricing for facility:', facilityId);
-    
-    const q = collection(db, 'facilities', facilityId, 'pricing');
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => doc.data() as PriceConfig);
-      console.log('PatientIntake: Received pricing data:', data.length, 'items');
-      setPricing(data);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `facilities/${facilityId}/pricing`);
-    });
-
-    const unsubscribeGlobal = onSnapshot(doc(db, 'systemSettings', 'global'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
+  // Load pricing and facility info from API
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [pricingData, settings] = await Promise.all([
+          api.pricing.list('default-facility'),
+          api.settings.getGlobal()
+        ]);
+        setPricing(pricingData.map(p => ({ partName: p.partName, price: Number(p.price), currency: p.currency || 'GHS' })));
+        const nextSettings = (settings || {}) as any;
         setFacilityInfo({
-          name: data.facilityName || '',
-          logo: data.facilityLogo || '',
-          letterhead: data.facilityLetterhead || ''
+          name: nextSettings.facilityName || profile?.facilityName || '',
+          logo: nextSettings.facilityLogo || profile?.facilityLogo || '',
+          letterhead: nextSettings.facilityLetterhead || profile?.facilityLetterhead || ''
         });
+      } catch (error) {
+        console.error('Failed to load pricing/settings:', error);
+        toast.error('Failed to load pricing data');
       }
-    });
-    
-    return () => {
-      unsubscribe();
-      unsubscribeGlobal();
     };
-  }, []);
+    loadData();
+  }, [profile?.facilityName, profile?.facilityLogo, profile?.facilityLetterhead]);
 
   const [patientData, setPatientData] = useState({
     id: generateId('MRN'),
@@ -277,74 +268,70 @@ export default function PatientIntake() {
 
     setLoading(true);
     try {
-      // 1. Create/Update Patient
-      const formattedPhone = formatGhanaPhoneNumber(patientData.phone);
+      const formattedPhone = formatGhanaPhoneNumber(patientData.phone || '');
       const formattedPhysicianPhone = patientData.physicianPhone ? formatGhanaPhoneNumber(patientData.physicianPhone) : '';
-      
-      const patientRef = doc(db, 'patients', patientData.id);
       const accessCode = Math.floor(100000 + Math.random() * 900000).toString();
-      
-      // 2. Imaging request reference (need ID early for patient doc)
-      const requestsRef = collection(db, 'patients', patientData.id, 'requests');
-      const requestDocRef = doc(requestsRef); // Generate ID before write
-      
+
       const proceduresWithPrice = requestData.selectedParts.map(partObj => {
         const config = pricing.find(p => p.partName === partObj.name);
         const isExtremity = EXTREMITIES.includes(partObj.name);
         const multiplier = (partObj.laterality === 'Both' && isExtremity) ? 2 : 1;
-        
-        // Mandatory Sonographer Report requirement fee (always GHS 50 if the procedure is Ultrasound)
+
         const isPartUltrasound = partObj.modality === 'Ultrasound' || ULTRASOUND_PROCEDURES.includes(partObj.name);
         const sonographerFee = isPartUltrasound ? 50 : 0;
-
-        // No Radiologist reporting fee or report requirement for Ultrasound procedures (reporting fee is 0 and needsReport is false)
         const reportingFee = isPartUltrasound ? 0 : ((requestData.needsReport && partObj.needsReport) ? 50 : 0);
-        
+        const priceValue = typeof config?.price === 'number' ? config.price : Number(config?.price) || 0;
+
         return {
           name: partObj.name,
           laterality: partObj.laterality,
           modality: partObj.modality || getModalityForProcedure(partObj.name),
-          price: (config?.price || 0) * multiplier + reportingFee + sonographerFee,
-          basePrice: (config?.price || 0) * multiplier,
-          reportingFee: reportingFee,
-          sonographerFee: sonographerFee,
+          price: priceValue * multiplier + reportingFee + sonographerFee,
+          basePrice: priceValue * multiplier,
+          reportingFee,
+          sonographerFee,
           needsReport: isPartUltrasound ? false : !!(requestData.needsReport && partObj.needsReport),
           currency: 'GHS'
         };
       });
 
       const totalCost = proceduresWithPrice.reduce((acc, curr) => acc + curr.price, 0);
+      const hasAnyRadiologistReport = proceduresWithPrice.some(p => p.needsReport);
 
-      await setDoc(patientRef, {
-        ...patientData,
+      const patientPayload = {
+        id: patientData.id,
+        name: patientData.name,
+        age: Number(patientData.age || 0),
+        gender: patientData.gender,
         phone: formattedPhone,
+        address: patientData.address || '',
+        facilityId: 'default-facility',
+        accessCode,
+        mrn: patientData.id,
+        email: patientData.email || '',
+        physicianName: patientData.physicianName || '',
         physicianPhone: formattedPhysicianPhone,
-        email: patientData.email,
-        physicianEmail: patientData.physicianEmail,
-        age: Number(patientData.age),
+        physicianEmail: patientData.physicianEmail || '',
         lastBodyParts: requestData.selectedParts.map(p => p.name).join(', '),
         lastProcedures: proceduresWithPrice,
         lastTotalCost: totalCost,
-        lastRequestId: requestDocRef.id,
         lastAccessCode: accessCode,
-        facilityId: 'default-facility',
-        facilityName: profile?.facilityName || 'Main Facility',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+        facilityName: profile?.facilityName || 'Main Facility'
+      } as any;
 
-      const hasAnyRadiologistReport = proceduresWithPrice.some(p => p.needsReport);
+      const createdPatient = await api.patients.create(patientPayload);
 
-      // 2. Create Imaging Request
-      await setDoc(requestDocRef, {
-        ...requestData,
+      const createdRequest = await api.requests.create(createdPatient.id || patientData.id, {
+        id: `req_${Math.random().toString(36).slice(2, 10)}`,
+        modalities: requestData.modalities,
+        procedures: proceduresWithPrice,
+        clinicalInfo: requestData.clinicalInfo,
+        priority: requestData.priority,
         needsReport: hasAnyRadiologistReport,
-        id: requestDocRef.id,
-        patientId: patientData.id,
-        patientName: patientData.name,
+        status: 'Pending',
         facilityId: 'default-facility',
-        facilityName: profile?.facilityName || 'Main Facility',
-        patientAge: Number(patientData.age),
+        patientName: patientData.name,
+        patientAge: Number(patientData.age || 0),
         patientGender: patientData.gender,
         patientPhone: formattedPhone,
         patientEmail: patientData.email,
@@ -353,16 +340,12 @@ export default function PatientIntake() {
         physicianEmail: patientData.physicianEmail,
         receptionistName: profile?.displayName || 'Unknown',
         receptionistId: profile?.uid,
-        status: 'pending',
         notificationSent: false,
         patientNotified: false,
         physicianNotified: false,
-        accessCode: accessCode,
-        procedures: proceduresWithPrice,
-        totalCost: totalCost,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+        accessCode,
+        totalCost,
+      } as any);
 
       logAction({
         action: 'PATIENT_INTAKE',
@@ -377,20 +360,20 @@ export default function PatientIntake() {
       });
 
       toast.success('Patient registered and request created!');
-      
-      setLastRegisteredPatient({ 
-        ...patientData, 
+
+      setLastRegisteredPatient({
+        ...patientData,
         age: Number(patientData.age),
         bodyParts: requestData.selectedParts.map(p => p.name).join(', '),
         procedures: proceduresWithPrice,
-        totalCost: totalCost,
-        requestId: requestDocRef.id,
-        accessCode: accessCode
+        totalCost,
+        requestId: createdRequest.id,
+        accessCode
       });
       setShowReceiptModal(true);
-      // Don't navigate immediately so they can print
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `patients/${patientData.id}`);
+      console.error('Patient intake failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Patient intake failed');
     } finally {
       setLoading(false);
     }
@@ -673,7 +656,7 @@ export default function PatientIntake() {
                               {filteredProcs.map(part => {
                                 const config = pricing.find(p => p.partName === part);
                                 const isSelected = requestData.selectedParts.some(p => p.name === part);
-                                const activePrice = config?.price || 0;
+                                const activePrice = typeof config?.price === 'number' ? config.price : Number(config?.price) || 0;
                                 
                                 return (
                                   <button
@@ -745,7 +728,7 @@ export default function PatientIntake() {
                                   {filteredSpecialProcedures.map(part => {
                                     const config = pricing.find(p => p.partName === part);
                                     const isSelected = requestData.selectedParts.some(p => p.name === part);
-                                    const activePrice = config?.price || 0;
+                                    const activePrice = typeof config?.price === 'number' ? config.price : Number(config?.price) || 0;
                                     const xrayTheme = getModalityThemeConfig('X-Ray');
                                     
                                     return (
@@ -905,12 +888,13 @@ export default function PatientIntake() {
                               requestData.selectedParts
                                 .reduce((acc, partObj) => {
                                   const config = pricing.find(p => p.partName === partObj.name);
+                                  const priceValue = typeof config?.price === 'number' ? config.price : Number(config?.price) || 0;
                                   const isExtremity = EXTREMITIES.includes(partObj.name);
                                   const multiplier = (partObj.laterality === 'Both' && isExtremity) ? 2 : 1;
                                   const isPartUltrasound = partObj.modality === 'Ultrasound' || ULTRASOUND_PROCEDURES.includes(partObj.name);
                                   const reportingFee = isPartUltrasound ? 0 : ((requestData.needsReport && partObj.needsReport) ? 50 : 0);
                                   const sonographerFee = isPartUltrasound ? 50 : 0;
-                                  return acc + ((config?.price || 0) * multiplier) + reportingFee + sonographerFee;
+                                  return acc + (priceValue * multiplier) + reportingFee + sonographerFee;
                                 }, 0)
                                 .toFixed(2)
                             }

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { db } from '../firebase';
-import { collectionGroup, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { db, collectionGroup, query, where, onSnapshot, orderBy } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 

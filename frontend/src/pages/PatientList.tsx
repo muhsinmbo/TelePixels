@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, onSnapshot, query, orderBy, where, doc, updateDoc, serverTimestamp, db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate, cn, formatGhanaPhoneNumber } from '../lib/utils';
 import { Search, User, ChevronRight, Printer, Pencil, Trash2, ShieldAlert, QrCode, FileText, Upload, UserPlus } from 'lucide-react';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
 import { logAction } from '../services/loggerService';
 import { Link } from 'react-router-dom';

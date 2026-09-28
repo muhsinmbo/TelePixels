@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { collection, query, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, query, getDocs, orderBy, doc, getDoc, db } from '../firebase';
 import { useCornerstone } from '../hooks/useCornerstone';
 import { useViewerStore } from '../store/useViewerStore';
 import { useAuth } from '../contexts/AuthContext';

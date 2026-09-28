@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { collection, addDoc, setDoc, serverTimestamp, query, getDocs, onSnapshot, orderBy, limit, doc, updateDoc, getDoc } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
+import { collection, addDoc, setDoc, serverTimestamp, query, getDocs, onSnapshot, orderBy, limit, doc, updateDoc, getDoc, db, auth } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { FileText, Upload, CheckCircle, Loader2, AlertCircle, X } from 'lucide-react';
 import { cn } from '../../lib/utils';

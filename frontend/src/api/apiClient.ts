@@ -114,6 +114,9 @@ export const setRefreshToken = (token: string | null) => {
 // Single-flight silent refresh: concurrent 401s share one rotation.
 let refreshPromise: Promise<string> | null = null;
 
+// In-flight GET request deduplication cache
+const inFlightGetCache = new Map<string, Promise<any>>();
+
 function isRefreshable(endpoint: string): boolean {
   return !endpoint.startsWith('/api/auth/') && endpoint !== '/api/portal/verify';
 }
@@ -147,6 +150,16 @@ async function refreshAccessToken(): Promise<string> {
 
 // Generic HTTP Request Handler (auto-retries once after silent refresh)
 async function request<T>(endpoint: string, options: RequestInit = {}, retried = false): Promise<T> {
+  const method = (options.method || 'GET').toUpperCase();
+  const isGet = method === 'GET';
+  const cacheKey = `${method}:${endpoint}`;
+
+  // Deduplicate concurrent GET requests
+  if (isGet) {
+    const existing = inFlightGetCache.get(cacheKey);
+    if (existing) return existing as Promise<T>;
+  }
+
   const token = getAuthToken();
   const headers = new Headers(options.headers || {});
 
@@ -158,39 +171,48 @@ async function request<T>(endpoint: string, options: RequestInit = {}, retried =
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(resolveApiUrl(endpoint), {
-    ...options,
-    headers,
-  });
+  const promise = (async () => {
+    const response = await fetch(resolveApiUrl(endpoint), {
+      ...options,
+      headers,
+    });
 
-  if (response.status === 401 && !retried && isRefreshable(endpoint)) {
-    try {
-      await refreshAccessToken();
-      return request<T>(endpoint, options, true);
-    } catch {
-      // Refresh failed — fall through to the standard error below
-    }
-  }
-
-  if (!response.ok) {
-    let errorMsg = `HTTP Error ${response.status}: ${response.statusText}`;
-    try {
-      const errJson = await response.json();
-      if (errJson.error || errJson.message) {
-        errorMsg = errJson.error || errJson.message;
+    if (response.status === 401 && !retried && isRefreshable(endpoint)) {
+      try {
+        await refreshAccessToken();
+        return request<T>(endpoint, options, true);
+      } catch {
+        // Refresh failed — fall through to the standard error below
       }
-    } catch {
-      // Use status text if json parsing fails
     }
-    throw new Error(errorMsg);
+
+    if (!response.ok) {
+      let errorMsg = `HTTP Error ${response.status}: ${response.statusText}`;
+      try {
+        const errJson = await response.json();
+        if (errJson.error || errJson.message) {
+          errorMsg = errJson.error || errJson.message;
+        }
+      } catch {
+        // Use status text if json parsing fails
+      }
+      throw new Error(errorMsg);
+    }
+
+    // Handle 204 No Content
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    return response.json();
+  })();
+
+  if (isGet) {
+    inFlightGetCache.set(cacheKey, promise);
+    promise.finally(() => inFlightGetCache.delete(cacheKey));
   }
 
-  // Handle 204 No Content
-  if (response.status === 204) {
-    return {} as T;
-  }
-
-  return response.json();
+  return promise;
 }
 
 // Full REST API Client

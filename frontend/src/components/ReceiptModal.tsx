@@ -3,8 +3,7 @@ import { X, Printer, HeartPulse, QrCode, Key } from 'lucide-react';
 import { formatDate } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc, onSnapshot, db } from '../firebase';
 
 interface ReceiptModalProps {
   isOpen: boolean;

@@ -51,16 +51,32 @@ export interface ImagingRequest {
   procedures: string[] | any[];
   clinicalInfo?: string;
   radiographerHistory?: string;
+  radiographerId?: string;
+  radiographerName?: string;
   status: RequestStatus;
   priority: ImagingPriority;
   needsReport: boolean;
   facilityId?: string;
   studyDescription?: string;
+  accessCode?: string;
+  patientName?: string;
+  patientAge?: number;
+  patientGender?: string;
+  patientPhone?: string;
+  patientEmail?: string;
+  physicianName?: string;
+  physicianPhone?: string;
+  physicianEmail?: string;
+  receptionistName?: string;
+  receptionistId?: string;
   createdAt: string;
   uploadedAt?: string;
   completedAt?: string;
   notificationSent?: boolean;
+  patientNotified?: boolean;
+  physicianNotified?: boolean;
   notifiedAt?: string;
+  totalCost?: number;
 }
 
 export interface StudyImage {
@@ -131,6 +147,8 @@ export interface SystemSettings {
   facilityName: string;
   facilityPhone?: string;
   facilityAddress?: string;
+  facilityLogo?: string;
+  facilityLetterhead?: string;
   theme?: 'cyber' | 'teleradiology';
   whatsappEnabled?: boolean;
   emailEnabled?: boolean;

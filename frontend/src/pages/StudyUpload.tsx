@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, writeBatch, collection, serverTimestamp, onSnapshot, getDoc, query, where, getDocs } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { supabase, BUCKET_NAME } from '../supabase';
+import { api } from '../api/apiClient';
+import { supabase } from '../supabase';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, File, X, CheckCircle, Loader2, ImagePlus, Plus, AlertCircle, Mail, UserCheck } from 'lucide-react';
@@ -44,50 +43,48 @@ export default function StudyUpload() {
   React.useEffect(() => {
     const fetchRadiologists = async () => {
       try {
-        const q = query(collection(db, 'users'), where('role', '==', 'radiologist'));
-        const snap = await getDocs(q);
-        setRadiologists(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const users = await api.auth.getAllUsers();
+        setRadiologists(users.filter(u => u.role === 'radiologist'));
       } catch (err) {
         console.error('Error fetching radiologists:', err);
       }
     };
 
-    const unsubscribeGlobal = onSnapshot(doc(db, 'systemSettings', 'global'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
+    const fetchSettings = async () => {
+      try {
+        const data = await api.settings.getGlobal();
         setFacilityInfo({
           name: data.facilityName || '',
           logo: data.facilityLogo || '',
           letterhead: data.facilityLetterhead || ''
         });
+      } catch (err) {
+        console.error('Error fetching facility settings:', err);
       }
-    });
+    };
 
     fetchRadiologists();
-    return () => unsubscribeGlobal();
+    fetchSettings();
   }, []);
 
   // Fetch request data to know if report is required
   React.useEffect(() => {
     if (!patientId || !requestId) return;
-    const requestRef = doc(db, 'patients', patientId, 'requests', requestId);
-    const unsubscribe = onSnapshot(requestRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        const hasAnyNeedsReportProc = !!(data.procedures && Array.isArray(data.procedures) && data.procedures.some((p: any) => p.needsReport));
-        if (data.needsReport !== undefined) {
-          setNeedsReport(data.needsReport || hasAnyNeedsReportProc);
-        } else {
-          setNeedsReport(hasAnyNeedsReportProc);
-        }
-        if (data.accessCode) {
-          setAccessCode(data.accessCode);
-        }
-        if (data.procedures && Array.isArray(data.procedures)) {
-          setProcedures(data.procedures);
-        }
-        if (data.modalities && data.modalities.length > 0) {
-          // Map to standard DICOM modality codes if possible
+
+    const loadRequestData = async () => {
+      try {
+        const [request, patient, images] = await Promise.all([
+          api.requests.get(patientId, requestId),
+          api.patients.get(patientId),
+          api.studies.listImages(patientId, requestId).catch(() => [])
+        ]);
+
+        const reqAny = request as any;
+        const hasAnyNeedsReportProc = !!(reqAny.procedures && Array.isArray(reqAny.procedures) && reqAny.procedures.some((p: any) => p.needsReport));
+        setNeedsReport(reqAny.needsReport !== undefined ? (reqAny.needsReport || hasAnyNeedsReportProc) : hasAnyNeedsReportProc);
+        if (reqAny.accessCode) setAccessCode(reqAny.accessCode);
+        if (request.procedures && Array.isArray(request.procedures)) setProcedures(request.procedures);
+        if (request.modalities && request.modalities.length > 0) {
           const modMap: Record<string, string> = {
             'X-Ray': 'DX',
             'CT Scan': 'CT',
@@ -96,37 +93,23 @@ export default function StudyUpload() {
             'Mammography': 'MG',
             'Contrast Studies': 'DX'
           };
-          const firstMod = data.modalities[0];
+          const firstMod = request.modalities[0];
           setStudyModality(modMap[firstMod] || firstMod || 'OT');
         }
-      }
-    });
+        setPatientName(patient.name || '');
 
-    // Fetch patient name
-    const patientRef = doc(db, 'patients', patientId);
-    getDoc(patientRef).then(snap => {
-      if (snap.exists()) setPatientName(snap.data().name);
-    });
-
-    // Fetch existing images to show counts
-    const fetchExistingCounts = async () => {
-      try {
-        const imagesRef = collection(db, 'patients', patientId, 'requests', requestId, 'images');
-        const snap = await getDocs(imagesRef);
         const counts: Record<string, number> = {};
-        snap.forEach(doc => {
-          const data = doc.data();
-          const procId = data.procedureId || 'legacy';
+        for (const image of images) {
+          const procId = image.procedureId || 'legacy';
           counts[procId] = (counts[procId] || 0) + 1;
-        });
+        }
         setExistingImagesCount(counts);
       } catch (err) {
-        console.error('Error fetching image counts:', err);
+        console.error('Error fetching upload data:', err);
       }
     };
-    fetchExistingCounts();
 
-    return unsubscribe;
+    loadRequestData();
   }, [patientId, requestId]);
 
   // Clean up ObjectURLs to prevent memory leaks
@@ -208,30 +191,20 @@ export default function StudyUpload() {
         const ext = file.name.split('.').pop() || 'bin';
         const storagePath = `${patientId}/${requestId}/${Date.now()}_${safeId}.${ext}`;
         
-        const { error: uploadErr } = await supabase.storage
-          .from(BUCKET_NAME)
-          .upload(storagePath, file, {
-            contentType: file.type || 'application/octet-stream',
-            upsert: true
-          });
-          
-        if (uploadErr) throw uploadErr;
+          const uploadResult = await api.storage.upload(storagePath, file, {
+          contentType: file.type || 'application/octet-stream'
+        });
 
-        const { data: { publicUrl } } = supabase.storage
-          .from(BUCKET_NAME)
-          .getPublicUrl(storagePath);
-        
         processedImages.push({
-          url: publicUrl,
-          storagePath: storagePath,
+          url: uploadResult.publicUrl,
+          storagePath: uploadResult.storagePath,
           name: file.name,
-          uploadedAt: serverTimestamp(),
           procedureId: (procedure as any).id || procIdx.toString(),
           procedureName: procedureName,
-          accessCode: accessCode, // Replicate for portal access
+          accessCode: accessCode,
           laterality: (procedure as any).laterality || 'None',
-          dicomHeader: { 
-            modality: studyModality, 
+          dicomHeader: {
+            modality: studyModality,
             sopInstanceUid: safeId,
             bodyPart: procedureName
           }
@@ -241,25 +214,16 @@ export default function StudyUpload() {
         setProgress(Math.round((completedCount / totalFiles) * 100));
       }
 
-      const dbBatch = writeBatch(db);
-      const imagesRef = collection(db, 'patients', patientId, 'requests', requestId, 'images');
-      
-      processedImages.forEach(img => {
-        const newImgRef = doc(imagesRef);
-        dbBatch.set(newImgRef, img);
-      });
+      for (const image of processedImages) {
+        await api.studies.addImage(patientId, requestId, image);
+      }
 
-      const hasUltrasound = (procedures || []).some((p: any) => ULTRASOUND_PROCEDURES.includes(p.name));
-      const requestRef = doc(db, 'patients', patientId, 'requests', requestId);
-      dbBatch.update(requestRef, {
-        status: needsReport ? 'Images Uploaded' : 'Completed', // Partial update of status
-        needsReport: needsReport,
-        updatedAt: serverTimestamp(),
+      await api.requests.update(patientId, requestId, {
+        needsReport,
+        radiographerHistory,
         radiographerId: profile?.uid,
         radiographerName: profile?.displayName || 'Unknown'
       });
-      
-      await dbBatch.commit();
       
       logAction({
         action: 'IMAGE_UPLOAD',
@@ -296,17 +260,13 @@ export default function StudyUpload() {
     setProgress(50);
 
     try {
-      const hasUltrasound = (procedures || []).some((p: any) => ULTRASOUND_PROCEDURES.includes(p.name));
-      const requestRef = doc(db, 'patients', patientId, 'requests', requestId);
-      await writeBatch(db).update(requestRef, {
+      await api.requests.update(patientId, requestId, {
         status: needsReport ? 'Images Uploaded' : 'Completed',
-        needsReport: needsReport,
-        uploadedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        radiographerHistory: radiographerHistory,
+        needsReport,
+        radiographerHistory,
         radiographerId: profile?.uid,
         radiographerName: profile?.displayName || 'Unknown'
-      }).commit();
+      });
 
       setProgress(100);
       setIsFinished(true);

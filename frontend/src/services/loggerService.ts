@@ -1,5 +1,4 @@
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from '../firebase';
+import { collection, addDoc, serverTimestamp, db, auth } from '../firebase';
 
 export type LogAction = 
   | 'LOGIN' 

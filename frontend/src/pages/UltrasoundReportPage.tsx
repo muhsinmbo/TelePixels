@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc, getDoc, updateDoc, serverTimestamp, onSnapshot, db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { logAction } from '../services/loggerService';
 import { toast } from 'react-hot-toast';

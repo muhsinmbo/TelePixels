@@ -27,8 +27,7 @@ import { seedDefaultPricing } from './services/pricingInitialiser';
 
 import EditPatientIntake from './pages/EditPatientIntake';
 
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from './firebase';
+import { doc, onSnapshot, db } from './firebase';
 
 function ProtectedRoute({ children, roles }: { children: React.ReactNode, roles?: string[] }) {
   const { user, profile, loading } = useAuth();

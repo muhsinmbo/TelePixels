@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams, useNavigate, NavLink } from 'react-router-dom';
-import { doc, getDocs, collection, collectionGroup, onSnapshot, query, where, orderBy, serverTimestamp, updateDoc, addDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc, getDocs, collection, collectionGroup, onSnapshot, query, where, orderBy, serverTimestamp, updateDoc, addDoc, db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { logAction } from '../services/loggerService';
 import { motion, AnimatePresence } from 'motion/react';

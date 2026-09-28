@@ -1,7 +1,6 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, getDocs, query, where, orderBy, db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 export async function exportFullDataArchive(

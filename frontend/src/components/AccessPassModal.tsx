@@ -4,8 +4,7 @@ import { formatDate } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc, onSnapshot, db } from '../firebase';
 
 interface AccessPassModalProps {
   isOpen: boolean;

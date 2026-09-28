@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collectionGroup, onSnapshot, query, where, collection, getDocs, doc, updateDoc, addDoc, setDoc, getDoc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collectionGroup, onSnapshot, query, where, collection, getDocs, doc, updateDoc, addDoc, setDoc, getDoc, serverTimestamp, orderBy, limit, db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate } from '../lib/utils';
 import { FileText, Eye, CheckCircle, User, AlertCircle, Monitor, Search, Upload, X, Loader2, Users } from 'lucide-react';

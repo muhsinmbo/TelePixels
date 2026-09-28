@@ -17,8 +17,7 @@ import BrandLogo from '../components/BrandLogo';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { doc, updateDoc, setDoc, onSnapshot, serverTimestamp, collection, getDocs } from 'firebase/firestore';
-import { db, auth } from '../firebase';
+import { doc, updateDoc, setDoc, onSnapshot, serverTimestamp, collection, getDocs, db, auth } from '../firebase';
 
 enum OperationType {
   CREATE = 'create',

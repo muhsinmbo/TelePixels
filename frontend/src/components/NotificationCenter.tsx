@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collectionGroup, query, where, onSnapshot, getDoc, doc, updateDoc, serverTimestamp, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collectionGroup, query, where, onSnapshot, getDoc, doc, updateDoc, serverTimestamp, orderBy, db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, Clock, CheckCircle, ExternalLink, Loader2, Mail, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';

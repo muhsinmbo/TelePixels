@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, limit, onSnapshot, getDocs, where, doc, updateDoc, setDoc, serverTimestamp, collectionGroup, getDoc, deleteDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { collection, query, orderBy, limit, onSnapshot, getDocs, where, doc, updateDoc, setDoc, serverTimestamp, collectionGroup, getDoc, deleteDoc, db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate, sanitizeDocId } from '../lib/utils';
 import { Shield, Activity, Users, Building2, Search, Filter, ArrowUpRight, TrendingUp, History, UserCheck, UserX, Mail, UserCog, Layout, Plus, Pencil, X, Banknote, DollarSign, Trash2, Check, XCircle, ShieldAlert, Download, Loader2, FileText, Vote } from 'lucide-react';

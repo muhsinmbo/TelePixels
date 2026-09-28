@@ -499,6 +499,12 @@ export async function setDoc(ref: DocRef, data: any, options?: { merge?: boolean
     invalidateCaches();
     return;
   }
+  if (p.top === 'patients' && p.pid && p.rid && p.tail === 'images') {
+    const pid = await resolvePid(p.pid);
+    await api.studies.addImage(pid, p.rid, data);
+    invalidateCaches();
+    return;
+  }
   if (p.top === 'users' && p.leaf) {
     try { await api.auth.updateUser(p.leaf, options?.merge ? data : data); }
     catch { await api.auth.createUser({ ...data, uid: p.leaf } as any); }
@@ -542,6 +548,12 @@ export async function updateDoc(ref: DocRef, data: any) {
       return;
     }
     await api.reports.update(pid, p.rid, p.leaf, data);
+    invalidateCaches();
+    return;
+  }
+  if (p.top === 'patients' && p.pid && p.rid && p.tail === 'images') {
+    const pid = await resolvePid(p.pid);
+    await api.studies.addImage(pid, p.rid, data);
     invalidateCaches();
     return;
   }

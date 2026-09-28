@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, where, onSnapshot, getDocs, collectionGroup, orderBy, limit } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, query, where, onSnapshot, getDocs, collectionGroup, orderBy, limit, db } from '../firebase';
 import { motion } from 'motion/react';
 import { Users, Clock, CheckCircle, AlertCircle, FileText, MessageCircle, UserPlus, Upload, ShieldCheck, Activity, BarChart3, ListFilter, Monitor, DollarSign, Printer } from 'lucide-react';
 import { cn, formatDate } from '../lib/utils';
