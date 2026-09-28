@@ -229,7 +229,20 @@ CREATE TABLE IF NOT EXISTS report_templates (
 );
 CREATE INDEX IF NOT EXISTS idx_templates_lookup ON report_templates(modality, examination, sex) WHERE is_active;
 
--- 12. Client-extras escape hatch (STANDARD BUILD).
+-- 12. Refresh-token rotation (hotel key cards, not 8-hour passes).
+-- Only the SHA-256 hash is stored; theft of the DB alone yields no sessions.
+-- Reuse of a rotated token revokes the whole chain (theft detection).
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    token_hash VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    revoked_at TIMESTAMP WITH TIME ZONE,
+    replaced_by VARCHAR(64),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_user ON refresh_tokens(user_id);
+
+-- 13. Client-extras escape hatch (STANDARD BUILD).
 -- The frontend stores workflow extras (physician phones, priced procedures,
 -- radiographer names, report drafts metadata...) on documents. Instead of a
 -- migration per field, unknown keys ride in meta and are merged back on read.

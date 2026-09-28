@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { dbQuery } from '../database/db';
 import { facilityScope } from '../middleware/auth';
 import { Validators, splitMeta } from '../middleware/validate';
+import { getPage, pageClause } from '../middleware/paginate';
 import { audit } from '../middleware/errors';
 import { withMeta } from './patients';
 
@@ -37,7 +38,9 @@ requestsRouter.get('/requests', async (req: Request, res: Response) => {
   if (req.query.status) { vals.push(req.query.status); conds.push(`status = $${vals.length}`); }
   if (req.query.patientId) { vals.push(req.query.patientId); conds.push(`patient_id = $${vals.length}`); }
   const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-  const rows = await dbQuery<any>(`SELECT ${SELECT} FROM imaging_requests ${where} ORDER BY created_at DESC`, vals);
+  const { limit, offset } = getPage(req.query);
+  const rows = await dbQuery<any>(
+    `SELECT ${SELECT} FROM imaging_requests ${where} ORDER BY created_at DESC ${pageClause(vals, limit, offset)}`, vals);
   res.json(rows.map(withMeta));
 });
 

@@ -3,17 +3,11 @@
  */
 import { Router, Request, Response } from 'express';
 import { dbQuery } from '../database/db';
+import { portalLimiter } from '../middleware/rateLimit';
 
 export const portalRouter = Router();
 
-const hits = new Map<string, { count: number; reset: number }>();
-portalRouter.post('/portal/verify', async (req: Request, res: Response) => {
-  const ip = (req.ip || 'unknown').toString();
-  const now = Date.now();
-  const slot = hits.get(ip);
-  if (!slot || now > slot.reset) hits.set(ip, { count: 1, reset: now + 60000 });
-  else { slot.count++; if (slot.count > 30) return res.status(429).json({ error: 'Too many attempts' }); }
-
+portalRouter.post('/portal/verify', portalLimiter, async (req: Request, res: Response) => {
   const { mrn, accessCode } = req.body || {};
   if (!mrn || !accessCode) return res.status(400).json({ error: 'MRN and access code required' });
 

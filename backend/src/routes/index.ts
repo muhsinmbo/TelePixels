@@ -3,7 +3,7 @@
  * Old monolithic memoryDb implementation removed.
  */
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { authGate } from '../middleware/publicRoutes';
 import { authRouter } from './auth';
 import { usersRouter } from './users';
 import { patientsRouter } from './patients';
@@ -15,17 +15,14 @@ import { systemRouter } from './system';
 import { portalRouter } from './portal';
 import { storageRouter } from './storage';
 import { aiRouter } from './ai';
+import { docsRouter } from './docs';
 
 export const backendRouter = Router();
 
-// Single auth choke point. Everything needs JWT except these two public routes.
+// Single auth choke point (see middleware/publicRoutes.ts).
 // (Per-router `router.use(requireAuth)` is banned: Express runs router middleware
 // for every request passing through, which 401s public routes mounted later.)
-const PUBLIC = new Set(['POST /auth/login', 'POST /portal/verify', 'GET /settings/global']);
-backendRouter.use((req, res, next) => {
-  if (PUBLIC.has(`${req.method} ${req.path}`)) return next();
-  return requireAuth(req, res, next);
-});
+backendRouter.use(authGate);
 
 backendRouter.use(authRouter);
 backendRouter.use(usersRouter);
@@ -38,3 +35,4 @@ backendRouter.use(systemRouter);
 backendRouter.use(portalRouter);
 backendRouter.use(storageRouter);
 backendRouter.use(aiRouter);
+backendRouter.use(docsRouter);

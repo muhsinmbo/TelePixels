@@ -6,9 +6,14 @@ import fs from 'fs';
 import { backendRouter } from './routes/index';
 import { assertDbConnected } from './database/db';
 import { notFound, errorHandler } from './middleware/errors';
+import helmet from 'helmet';
+import { apiLimiter } from './middleware/rateLimit';
 
 export const app = express();
 const PORT = Number(process.env.PORT || 4000);
+if ((process.env.TRUST_PROXY || '').toLowerCase() === 'true') {
+  app.set('trust proxy', 1);
+}
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://127.0.0.1:3000')
   .split(',').map((o) => o.trim()).filter(Boolean);
 
@@ -22,8 +27,17 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
 }));
 
+// Security headers. CORP cross-origin: split-mode frontends (:3000) load
+// images/PDFs from here (:4000), and helmet's default same-origin CORP
+// would block that rendering — hence the explicit cross-origin policy.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false, // API + file server, not an HTML app
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use('/api', apiLimiter);
 
 app.use((req, _res, next) => {
   if (req.path.startsWith('/api') || req.path === '/health') console.log(`[api] ${req.method} ${req.path}`);

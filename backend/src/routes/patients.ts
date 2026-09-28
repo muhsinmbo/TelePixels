@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { dbQuery } from '../database/db';
 import { facilityScope } from '../middleware/auth';
 import { Validators, splitMeta } from '../middleware/validate';
+import { getPage, pageClause } from '../middleware/paginate';
 import { audit } from '../middleware/errors';
 
 export const patientsRouter = Router();
@@ -39,7 +40,9 @@ function scopeFilter(req: Request): { clause: string; vals: any[] } {
 
 patientsRouter.get('/patients', async (req: Request, res: Response) => {
   const { clause, vals } = scopeFilter(req);
-  const rows = await dbQuery<any>(`SELECT ${SELECT} FROM patients ${clause} ORDER BY created_at DESC`, vals);
+  const { limit, offset } = getPage(req.query);
+  const rows = await dbQuery<any>(
+    `SELECT ${SELECT} FROM patients ${clause} ORDER BY created_at DESC ${pageClause(vals, limit, offset)}`, vals);
   res.json(rows.map(withMeta));
 });
 

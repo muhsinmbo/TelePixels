@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { dbQuery } from '../database/db';
 import { requireRole } from '../middleware/auth';
 import { Validators, splitMeta } from '../middleware/validate';
+import { getPage, pageClause } from '../middleware/paginate';
 import { audit } from '../middleware/errors';
 import { withMeta } from './patients';
 
@@ -25,9 +26,12 @@ const SELECT = `id, email, display_name AS "displayName", role, status,
 
 usersRouter.get('/users', requireRole('facilityadmin'), async (req: Request, res: Response) => {
   const scope = req.user!.role === 'superadmin' ? null : req.user!.facilityId;
-  const rows = scope
-    ? await dbQuery<any>(`SELECT ${SELECT} FROM users WHERE facility_id = $1 ORDER BY display_name`, [scope])
-    : await dbQuery<any>(`SELECT ${SELECT} FROM users ORDER BY display_name`);
+  const vals: any[] = [];
+  const where = scope ? 'WHERE facility_id = $1' : '';
+  if (scope) vals.push(scope);
+  const { limit, offset } = getPage(req.query);
+  const rows = await dbQuery<any>(
+    `SELECT ${SELECT} FROM users ${where} ORDER BY display_name ${pageClause(vals, limit, offset)}`, vals);
   res.json(rows.map((u: any) => ({ ...withMeta(u), uid: u.id })));
 });
 
