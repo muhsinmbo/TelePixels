@@ -95,6 +95,10 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- Multi-procedure workflow state (added post-launch).
+-- NOTE: ALTER TYPE ... ADD VALUE cannot run inside a transaction block, so
+-- migrate.ts applies it as a separate single-statement query. See there.
+
 CREATE TABLE IF NOT EXISTS imaging_requests (
     id VARCHAR(64) PRIMARY KEY,
     patient_id VARCHAR(64) NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -209,7 +213,36 @@ CREATE TABLE IF NOT EXISTS system_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 11. Client-extras escape hatch (STANDARD BUILD).
+-- 11. AI reporting templates (context-aware assisted reporting).
+-- sex: 'Female' | 'Male' | 'Any'. Match order: exact → modality+exam+Any → generic.
+CREATE TABLE IF NOT EXISTS report_templates (
+    id VARCHAR(64) PRIMARY KEY,
+    modality VARCHAR(64) NOT NULL,
+    examination VARCHAR(255) NOT NULL,
+    sex VARCHAR(16) NOT NULL DEFAULT 'Any' CHECK (sex IN ('Female', 'Male', 'Other', 'Any')),
+    title VARCHAR(255) NOT NULL,
+    sections JSONB NOT NULL DEFAULT '[]'::jsonb,
+    impression_guidance TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_templates_lookup ON report_templates(modality, examination, sex) WHERE is_active;
+
+-- 12. Refresh-token rotation (hotel key cards, not 8-hour passes).
+-- Only the SHA-256 hash is stored; theft of the DB alone yields no sessions.
+-- Reuse of a rotated token revokes the whole chain (theft detection).
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    token_hash VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    revoked_at TIMESTAMP WITH TIME ZONE,
+    replaced_by VARCHAR(64),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_user ON refresh_tokens(user_id);
+
+-- 13. Client-extras escape hatch (STANDARD BUILD).
 -- The frontend stores workflow extras (physician phones, priced procedures,
 -- radiographer names, report drafts metadata...) on documents. Instead of a
 -- migration per field, unknown keys ride in meta and are merged back on read.

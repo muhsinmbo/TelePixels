@@ -5,6 +5,7 @@ import { Router, Request, Response } from 'express';
 import { dbQuery } from '../database/db';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { Validators } from '../middleware/validate';
+import { getPage, pageClause } from '../middleware/paginate';
 
 export const systemRouter = Router();
 
@@ -22,11 +23,12 @@ systemRouter.patch('/settings/global', requireRole('facilityadmin'), async (req:
 });
 
 systemRouter.get('/logs', requireRole('superadmin'), async (req: Request, res: Response) => {
-  const limit = Math.min(Number(req.query.limit) || 100, 500);
+  const { limit, offset } = getPage(req.query);
+  const vals: any[] = [];
   res.json(await dbQuery(
     `SELECT id, action, details, user_id AS "userId", user_name AS "userName", user_role AS "userRole",
        facility_id AS "facilityId", target_id AS "targetId", created_at AS "timestamp"
-     FROM system_logs ORDER BY id DESC LIMIT $1`, [limit]));
+     FROM system_logs ORDER BY id DESC ${pageClause(vals, limit, offset)}`, vals));
 });
 
 systemRouter.post('/logs', Validators.logCreate, async (req: Request, res: Response) => {

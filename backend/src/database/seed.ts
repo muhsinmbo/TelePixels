@@ -9,6 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
+import { TEMPLATES } from '../ai/templates';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,20 +50,26 @@ async function main() {
      'Saint Charles Road (Before Attaesibi Hotel), Tamale, Northern Region, Ghana']
   );
 
-  // 3. Superadmin (real bcrypt password — NO bypass logins anymore)
+  // 3. Superadmin (real bcrypt password — NO bypass logins anymore).
+  // Re-running seed never resets an existing password (change it via PATCH /users/:uid).
   const email = (process.env.SEED_SUPERADMIN_EMAIL || 'admin@kingsimaging.org').toLowerCase();
-  const plain = process.env.SEED_SUPERADMIN_PASSWORD || 'ChangeMe123!';
-  if (!process.env.SEED_SUPERADMIN_PASSWORD) {
-    console.warn('[seed] WARNING: SEED_SUPERADMIN_PASSWORD not set — using temp "ChangeMe123!". Change it after first login.');
+  const existing = await pool.query('SELECT id FROM users WHERE lower(email) = lower($1)', [email]);
+  if (!existing.rows[0]) {
+    const plain = process.env.SEED_SUPERADMIN_PASSWORD || 'ChangeMe123!';
+    if (!process.env.SEED_SUPERADMIN_PASSWORD) {
+      console.warn('[seed] WARNING: SEED_SUPERADMIN_PASSWORD not set — using temp "ChangeMe123!". Change it after first login.');
+    }
+    const password_hash = await bcrypt.hash(plain, 12);
+    await pool.query(
+      `INSERT INTO users (id, email, password_hash, display_name, role, status, facility_id)
+       VALUES ('superadmin-01', $1, $2, 'System Administrator', 'superadmin', 'active', $3)`,
+      [email, password_hash, FACILITY_ID]
+    );
+    console.log(`[seed] superadmin created: ${email}`);
+  } else {
+    await pool.query(`UPDATE users SET status = 'active' WHERE lower(email) = lower($1)`, [email]);
+    console.log(`[seed] superadmin exists (password untouched): ${email}`);
   }
-  const password_hash = await bcrypt.hash(plain, 12);
-  await pool.query(
-    `INSERT INTO users (id, email, password_hash, display_name, role, status, facility_id)
-     VALUES ('superadmin-01', $1, $2, 'System Administrator', 'superadmin', 'active', $3)
-     ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = 'active'`,
-    [email, password_hash, FACILITY_ID]
-  );
-  console.log(`[seed] superadmin ok: ${email}`);
 
   // 4. Pricing
   for (const [partName, price] of PRICING) {
@@ -75,7 +82,19 @@ async function main() {
   }
   console.log('[seed] pricing ok');
 
-  // 5. Global settings
+  // 5. AI reporting templates
+  for (const t of TEMPLATES) {
+    await pool.query(
+      `INSERT INTO report_templates (id, modality, examination, sex, title, sections, impression_guidance)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, sections = EXCLUDED.sections,
+         impression_guidance = EXCLUDED.impression_guidance, is_active = TRUE`,
+      [t.id, t.modality, t.examination, t.sex, t.title, JSON.stringify(t.sections), t.impressionGuidance]
+    );
+  }
+  console.log('[seed] templates ok');
+
+  // 6. Global settings
   await pool.query(
     `INSERT INTO system_settings (key, value) VALUES ('global', $1)
      ON CONFLICT (key) DO NOTHING`,

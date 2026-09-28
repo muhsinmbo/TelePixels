@@ -6,7 +6,8 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { dbQuery } from '../database/db';
 import { Validators, splitMeta } from '../middleware/validate';
-import { audit } from '../middleware/errors';
+import { audit, ah } from '../middleware/errors';
+import { isS3, s3ReadUrl, s3Delete } from '../storage/s3';
 import { withMeta } from './patients';
 
 export const imagesRouter = Router();
@@ -18,11 +19,20 @@ const SELECT = `id, request_id AS "requestId", patient_id AS "patientId", name, 
   procedure_name AS "procedureName", dicom_header AS "dicomHeader", meta,
   uploaded_at AS "uploadedAt"`;
 
-imagesRouter.get('/patients/:patientId/requests/:requestId/images', async (req: Request, res: Response) => {
+imagesRouter.get('/patients/:patientId/requests/:requestId/images', ah(async (req: Request, res: Response) => {
   const rows = await dbQuery<any>(
     `SELECT ${SELECT} FROM study_images WHERE request_id = $1 AND patient_id = $2 ORDER BY uploaded_at`, [req.params.requestId, req.params.patientId]);
-  res.json(rows.map(withMeta));
-});
+  const mapped = rows.map(withMeta);
+  if (isS3) {
+    // Re-sign on every read: stored keys never expire, presigned links do.
+    await Promise.all(mapped.map(async (img: any) => {
+      try { img.url = await s3ReadUrl(img.storagePath); } catch (e: any) {
+        console.warn('[images] presign failed:', e.message);
+      }
+    }));
+  }
+  res.json(mapped);
+}));
 
 imagesRouter.post('/patients/:patientId/requests/:requestId/images', Validators.imageCreate, async (req: Request, res: Response) => {
   const parent = await dbQuery<any>('SELECT id FROM imaging_requests WHERE id = $1 AND patient_id = $2',
@@ -42,4 +52,18 @@ imagesRouter.post('/patients/:patientId/requests/:requestId/images', Validators.
     [req.params.requestId]);
   await audit(req, 'IMAGE_ADD', `Added image ${id} to ${req.params.requestId}`, id);
   res.status(201).json(withMeta(rows[0]));
+});
+
+imagesRouter.delete('/patients/:patientId/requests/:requestId/images/:imageId', async (req: Request, res: Response) => {
+  if (!['superadmin', 'facilityadmin', 'radiographer', 'sonographer'].includes(req.user!.role))
+    return res.status(403).json({ error: 'Upload roles only' });
+  const rows = await dbQuery<any>('DELETE FROM study_images WHERE id = $1 AND request_id = $2 AND patient_id = $3 RETURNING id, storage_path',
+    [req.params.imageId, req.params.requestId, req.params.patientId]);
+  if (!rows[0]) return res.status(404).json({ error: 'Image not found' });
+  if (isS3 && rows[0].storage_path) {
+    try { await s3Delete(rows[0].storage_path); }
+    catch (e: any) { console.warn('[images] object delete failed:', e.message); }
+  }
+  await audit(req, 'IMAGE_DELETE', `Deleted image ${req.params.imageId}`, req.params.imageId);
+  res.status(204).send();
 });

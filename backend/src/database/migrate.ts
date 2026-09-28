@@ -25,6 +25,17 @@ async function main() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   await pool.query(schema);
   console.log('[migrate] schema applied');
+  // Post-launch enum values: single-statement queries (ADD VALUE cannot run
+  // inside a multi-statement transaction block).
+  await pool.query(`ALTER TYPE request_status_enum ADD VALUE IF NOT EXISTS 'Partially Reported'`)
+    .catch((e) => {
+      if (e.code === '55000' || /already exists/i.test(e.message)) {
+        console.log('[migrate] enum value already present');
+        return;
+      }
+      throw e;
+    });
+  console.log('[migrate] enums ok');
   await pool.end();
 }
 

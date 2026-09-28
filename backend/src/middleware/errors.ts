@@ -9,6 +9,16 @@ export function notFound(_req: Request, res: Response) {
   res.status(404).json({ error: 'Not found' });
 }
 
+/**
+ * Express 4 does not catch async handler rejections — without this, a single
+ * thrown error (e.g. AI 503, DB blip) kills the process with ECONNRESET.
+ */
+export function ah(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    fn(req, res, next).catch(next);
+  };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
   console.error('[api] error:', err?.message || err);

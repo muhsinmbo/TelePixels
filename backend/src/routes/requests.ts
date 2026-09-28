@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { dbQuery } from '../database/db';
 import { facilityScope } from '../middleware/auth';
 import { Validators, splitMeta } from '../middleware/validate';
+import { getPage, pageClause } from '../middleware/paginate';
 import { audit } from '../middleware/errors';
 import { withMeta } from './patients';
 
@@ -37,7 +38,9 @@ requestsRouter.get('/requests', async (req: Request, res: Response) => {
   if (req.query.status) { vals.push(req.query.status); conds.push(`status = $${vals.length}`); }
   if (req.query.patientId) { vals.push(req.query.patientId); conds.push(`patient_id = $${vals.length}`); }
   const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-  const rows = await dbQuery<any>(`SELECT ${SELECT} FROM imaging_requests ${where} ORDER BY created_at DESC`, vals);
+  const { limit, offset } = getPage(req.query);
+  const rows = await dbQuery<any>(
+    `SELECT ${SELECT} FROM imaging_requests ${where} ORDER BY created_at DESC ${pageClause(vals, limit, offset)}`, vals);
   res.json(rows.map(withMeta));
 });
 
@@ -86,7 +89,12 @@ requestsRouter.patch('/patients/:patientId/requests/:requestId', Validators.requ
     if (!cur[0]) return res.status(404).json({ error: 'Request not found' });
     const willNeedReport = cols.needsReport !== undefined ? !!cols.needsReport : cur[0].needs_report;
     if (willNeedReport) {
-      return res.status(400).json({ error: 'Complete a request by finalizing its report, not by status edit' });
+      // Radiologist sign-off after all procedures reported: allowed only when
+      // at least one finalized report exists (prevents empty completions).
+      const reps = await dbQuery('SELECT 1 FROM reports WHERE request_id = $1 LIMIT 1', [req.params.requestId]);
+      if (!reps[0]) {
+        return res.status(400).json({ error: 'Complete a request by finalizing its report, not by status edit' });
+      }
     }
   }
   const map: Record<string, string> = {
@@ -99,6 +107,11 @@ requestsRouter.patch('/patients/:patientId/requests/:requestId', Validators.requ
       vals.push(k === 'needsReport' ? !!cols[k] : cols[k]);
       sets.push(`${col} = $${vals.length}`);
     }
+  }
+  // Procedure-level progress (per-procedure Reported flags) lives in the
+  // procedures JSONB column — never in meta, or the column shadows it on read.
+  for (const k of ['procedures', 'modalities']) {
+    if (cols[k] !== undefined) { vals.push(JSON.stringify(cols[k])); sets.push(`${k} = $${vals.length}::jsonb`); }
   }
   if (Object.keys(meta).length) { vals.push(JSON.stringify(meta)); sets.push(`meta = meta || $${vals.length}::jsonb`); }
   if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });

@@ -17,9 +17,9 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": ["./frontend/src/*"],
-      "firebase/*": ["./frontend/src/api/compat.ts"],
-      "firebase": ["./frontend/src/api/compat.ts"],
-      "@supabase/supabase-js": ["./frontend/src/api/compat.ts"]
+      "firebase/*": ["./frontend/src/api/live.ts"],
+      "firebase": ["./frontend/src/api/live.ts"],
+      "@supabase/supabase-js": ["./frontend/src/api/live.ts"]
     },
     "types": ["vite/client", "node"],
     "allowImportingTsExtensions": true,

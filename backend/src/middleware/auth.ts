@@ -17,11 +17,12 @@ function secret(): string {
   return s;
 }
 
+/** Short-lived access pass (default 15m). See ACCESS_TOKEN_TTL. */
 export function signToken(user: AuthUser): string {
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role, facilityId: user.facilityId },
     secret(),
-    { expiresIn: (process.env.JWT_EXPIRES_IN as any) || '8h' }
+    { expiresIn: (process.env.ACCESS_TOKEN_TTL as any) || '15m' }
   );
 }
 

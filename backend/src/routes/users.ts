@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { dbQuery } from '../database/db';
 import { requireRole } from '../middleware/auth';
 import { Validators, splitMeta } from '../middleware/validate';
+import { getPage, pageClause } from '../middleware/paginate';
 import { audit } from '../middleware/errors';
 import { withMeta } from './patients';
 
@@ -25,10 +26,21 @@ const SELECT = `id, email, display_name AS "displayName", role, status,
 
 usersRouter.get('/users', requireRole('facilityadmin'), async (req: Request, res: Response) => {
   const scope = req.user!.role === 'superadmin' ? null : req.user!.facilityId;
-  const rows = scope
-    ? await dbQuery<any>(`SELECT ${SELECT} FROM users WHERE facility_id = $1 ORDER BY display_name`, [scope])
-    : await dbQuery<any>(`SELECT ${SELECT} FROM users ORDER BY display_name`);
+  const vals: any[] = [];
+  const where = scope ? 'WHERE facility_id = $1' : '';
+  if (scope) vals.push(scope);
+  const { limit, offset } = getPage(req.query);
+  const rows = await dbQuery<any>(
+    `SELECT ${SELECT} FROM users ${where} ORDER BY display_name ${pageClause(vals, limit, offset)}`, vals);
   res.json(rows.map((u: any) => ({ ...withMeta(u), uid: u.id })));
+});
+
+usersRouter.get('/users/:uid', requireRole('facilityadmin'), async (req: Request, res: Response) => {
+  const rows = await dbQuery<any>(`SELECT ${SELECT} FROM users WHERE id = $1`, [req.params.uid]);
+  if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+  const scope = req.user!.role === 'superadmin' ? null : req.user!.facilityId;
+  if (scope && rows[0].facilityId !== scope) return res.status(403).json({ error: 'Cross-facility access denied' });
+  res.json({ ...withMeta(rows[0]), uid: rows[0].id });
 });
 
 usersRouter.post('/users', requireRole('facilityadmin'), Validators.userCreate, async (req: Request, res: Response) => {
@@ -75,6 +87,17 @@ usersRouter.patch('/users/:uid', async (req: Request, res: Response) => {
     if ((cols as any)[k] !== undefined) { vals.push((cols as any)[k]); sets.push(`${col} = $${vals.length}`); }
   }
   if (Object.keys(meta).length) { vals.push(JSON.stringify(meta)); sets.push(`meta = meta || $${vals.length}::jsonb`); }
+  // Password change: self-service or superadmin. Never returned in responses.
+  if (req.body.password !== undefined) {
+    if (req.user!.id !== uid && req.user!.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Cannot change another user\u2019s password' });
+    }
+    if (typeof req.body.password !== 'string' || req.body.password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+    vals.push(await bcrypt.hash(req.body.password, 12));
+    sets.push(`password_hash = $${vals.length}`);
+  }
   if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
   vals.push(uid);
   const rows = await dbQuery<any>(

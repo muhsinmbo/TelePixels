@@ -1,8 +1,8 @@
 # STANDARD BUILD — end-to-end API workflow test (backend-first, no frontend needed).
 # Usage:
-#   $env:API = 'http://localhost:4500'; $env:EMAIL = 'admin@kingsimaging.org'; $env:PASS = 'ChangeMe123!'
+#   $env:API = 'http://localhost:4000'; $env:EMAIL = 'admin@kingsimaging.org'; $env:PASS = 'ChangeMe123!'
 #   .\scripts\test-api.ps1
-$API = $env:API; if (!$API) { $API = 'http://localhost:4500' }
+$API = $env:API; if (!$API) { $API = 'http://localhost:4000' }
 $EMAIL = $env:EMAIL; if (!$EMAIL) { $EMAIL = 'admin@kingsimaging.org' }
 $PASS = $env:PASS; if (!$PASS) { $PASS = 'ChangeMe123!' }
 $fail = 0

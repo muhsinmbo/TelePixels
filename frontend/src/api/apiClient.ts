@@ -11,6 +11,25 @@ import {
 
 type Listener = (data: any) => void;
 
+export interface AIStudyContext {
+  requestId: string; patientId: string;
+  patientAge: number | null; patientSex: string | null;
+  modality: string; examination: string; bodyPart: string | null;
+  clinicalHistory: string | null; radiographerHistory: string | null;
+  priority: string; status: string;
+}
+
+export interface AIReportTemplate {
+  id: string; title: string; modality: string; examination: string;
+  sections: Array<{ key: string; title: string; placeholder: string }>;
+  impressionGuidance: string; matchLevel: 'exact' | 'modality-exam' | 'generic';
+}
+
+export interface AIPreviousReport {
+  id: string; requestId: string; findings: string; impression: string;
+  comparison?: string; radiologistName: string; createdAt: string;
+}
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
 const resolveApiUrl = (endpoint: string) => {
@@ -50,7 +69,7 @@ export const eventBus = new ApiEventEmitter();
 
 // Token & Session Storage Helpers
 const TOKEN_KEY = 'tp_auth_token';
-const USER_KEY = 'tp_auth_user';
+const REFRESH_KEY = 'tp_refresh_token';
 
 export const getAuthToken = (): string | null => {
   try {
@@ -72,8 +91,62 @@ export const setAuthToken = (token: string | null) => {
   }
 };
 
-// Generic HTTP Request Handler
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export const getRefreshToken = (): string | null => {
+  try {
+    return localStorage.getItem(REFRESH_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const setRefreshToken = (token: string | null) => {
+  try {
+    if (token) {
+      localStorage.setItem(REFRESH_KEY, token);
+    } else {
+      localStorage.removeItem(REFRESH_KEY);
+    }
+  } catch (err) {
+    console.warn('Failed to set refresh token:', err);
+  }
+};
+
+// Single-flight silent refresh: concurrent 401s share one rotation.
+let refreshPromise: Promise<string> | null = null;
+
+function isRefreshable(endpoint: string): boolean {
+  return !endpoint.startsWith('/api/auth/') && endpoint !== '/api/portal/verify';
+}
+
+async function refreshAccessToken(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const rt = getRefreshToken();
+      if (!rt) throw new Error('No session — please log in again');
+      const res = await fetch(resolveApiUrl('/api/auth/refresh'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rt }),
+      });
+      if (!res.ok) {
+        setAuthToken(null);
+        setRefreshToken(null);
+        eventBus.emit('auth_state_changed', null);
+        throw new Error('Session expired — please log in again');
+      }
+      const data = await res.json();
+      setAuthToken(data.token);
+      setRefreshToken(data.refreshToken);
+      eventBus.emit('auth_state_changed', data.user || null);
+      return data.token as string;
+    })();
+    refreshPromise.catch(() => {}).finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
+
+// Generic HTTP Request Handler (auto-retries once after silent refresh)
+async function request<T>(endpoint: string, options: RequestInit = {}, retried = false): Promise<T> {
   const token = getAuthToken();
   const headers = new Headers(options.headers || {});
 
@@ -89,6 +162,15 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...options,
     headers,
   });
+
+  if (response.status === 401 && !retried && isRefreshable(endpoint)) {
+    try {
+      await refreshAccessToken();
+      return request<T>(endpoint, options, true);
+    } catch {
+      // Refresh failed — fall through to the standard error below
+    }
+  }
 
   if (!response.ok) {
     let errorMsg = `HTTP Error ${response.status}: ${response.statusText}`;
@@ -116,11 +198,12 @@ export const api = {
   // Authentication & Users
   auth: {
     async loginWithToken(credentials: { email?: string; password?: string; accessCode?: string; provider?: string }) {
-      const res = await request<{ token: string; user: UserProfile }>('/api/auth/login', {
+      const res = await request<{ token: string; refreshToken?: string; user: UserProfile }>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify(credentials),
       });
       setAuthToken(res.token);
+      if (res.refreshToken) setRefreshToken(res.refreshToken);
       eventBus.emit('auth_state_changed', res.user);
       return res;
     },
@@ -134,12 +217,27 @@ export const api = {
     },
 
     async logout(): Promise<void> {
+      const rt = getRefreshToken();
       try {
-        await request('/api/auth/logout', { method: 'POST' });
+        await request('/api/auth/logout', {
+          method: 'POST',
+          body: JSON.stringify(rt ? { refreshToken: rt } : {}),
+        });
       } finally {
         setAuthToken(null);
+        setRefreshToken(null);
         eventBus.emit('auth_state_changed', null);
       }
+    },
+
+    async revokeAllSessions(): Promise<void> {
+      await request('/api/auth/revoke', {
+        method: 'POST',
+        body: JSON.stringify({ all: true }),
+      });
+      setAuthToken(null);
+      setRefreshToken(null);
+      eventBus.emit('auth_state_changed', null);
     },
 
     async getAllUsers(): Promise<UserProfile[]> {
@@ -364,6 +462,38 @@ export const api = {
       }>('/api/portal/verify', {
         method: 'POST',
         body: JSON.stringify({ mrn, accessCode }),
+      });
+    }
+  },
+
+  // Context-aware AI-assisted reporting (human-in-the-loop)
+  ai: {
+    async context(patientId: string, requestId: string): Promise<AIStudyContext> {
+      return request<AIStudyContext>(`/api/ai/context?patientId=${encodeURIComponent(patientId)}&requestId=${encodeURIComponent(requestId)}`);
+    },
+
+    async template(modality: string, examination: string, sex?: string | null): Promise<AIReportTemplate> {
+      const q = new URLSearchParams({ modality, examination });
+      if (sex) q.set('sex', sex);
+      return request<AIReportTemplate>(`/api/ai/templates?${q.toString()}`);
+    },
+
+    async previousReports(patientId: string, excludeRequestId: string, limit = 5): Promise<AIPreviousReport[]> {
+      const q = new URLSearchParams({ patientId, excludeRequestId, limit: String(limit) });
+      return request<AIPreviousReport[]>(`/api/ai/previous-reports?${q.toString()}`);
+    },
+
+    async draft(patientId: string, requestId: string): Promise<{ template: AIReportTemplate; context: AIStudyContext; skeleton: string | null; modelDisabled: boolean }> {
+      return request<{ template: AIReportTemplate; context: AIStudyContext; skeleton: string | null; modelDisabled: boolean }>('/api/ai/draft', {
+        method: 'POST',
+        body: JSON.stringify({ patientId, requestId }),
+      });
+    },
+
+    async polish(patientId: string, requestId: string, findings: string, includePrevious = false) {
+      return request<{ polished: string; templateId: string | null }>('/api/ai/polish', {
+        method: 'POST',
+        body: JSON.stringify({ patientId, requestId, findings, includePrevious }),
       });
     }
   }

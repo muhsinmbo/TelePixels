@@ -13,6 +13,7 @@ import 'react-quill-new/dist/quill.snow.css';
 import { generateProfessionalPDF } from '../services/reportPdfService';
 import { ULTRASOUND_PROCEDURES } from '../constants';
 import { StudyTakeoverModal } from '../components/StudyTakeoverModal';
+import AIAssistantPanel from '../components/AIAssistantPanel';
 
 const QUILL_MODULES = {
   toolbar: [
@@ -972,7 +973,18 @@ export default function UltrasoundReportPage() {
 
         {/* Right 1 Column: history references & actions */}
         <div className="space-y-6">
-          
+          {patientId && requestId && (
+            <AIAssistantPanel
+              patientId={patientId}
+              requestId={requestId}
+              currentFindings={findings}
+              onApply={(nextFindings, nextImpression) => {
+                if (nextFindings) setFindings(nextFindings);
+                if (nextImpression) setImpression(nextImpression);
+              }}
+            />
+          )}
+
           {/* Document Upload Block - identical to Radiologist interface */}
           <div className="glass-panel p-8 space-y-6">
             <div className="space-y-4">
