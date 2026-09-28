@@ -94,7 +94,7 @@ function initializeDefaultData() {
       facilityName: "King's Diagnostic Imaging and Research Center",
       facilityPhone: "+233 50 025 2793",
       facilityAddress: "Saint Charles Road (Before Attaesibi Hotel), Tamale, Northern Region, Ghana",
-      theme: "cyber",
+      theme: "teleradiology",
       whatsappEnabled: true,
       emailEnabled: true,
     });

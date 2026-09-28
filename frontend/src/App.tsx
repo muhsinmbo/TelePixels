@@ -39,7 +39,7 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode, roles?
   });
   const [isMobileOpen, setIsMobileOpen] = React.useState<boolean>(false);
 
-  const effectiveTheme = profile?.systemTheme || 'cyber';
+  const effectiveTheme = profile?.systemTheme || 'teleradiology';
 
   React.useEffect(() => {
     if (effectiveTheme === 'teleradiology') {

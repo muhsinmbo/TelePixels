@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 
 export default function Login() {
   const { user, profile, login, loginAsReviewer, loading, error: authError } = useAuth();
-  const [theme, setTheme] = useState<'cyber' | 'teleradiology'>('cyber');
+  const [theme, setTheme] = useState<'cyber' | 'teleradiology'>('teleradiology');
   const [activeTab, setActiveTab] = useState<'google' | 'reviewer'>('google');
   
   // Reviewer credentials form state
@@ -153,7 +153,7 @@ export default function Login() {
           ease: "linear"
         }}
       >
-        <div className="absolute inset-0 bg-black/65 backdrop-blur-[2px]"></div>
+        <div className="absolute inset-0 bg-black/65"></div>
       </motion.div>
 
       <motion.div 
