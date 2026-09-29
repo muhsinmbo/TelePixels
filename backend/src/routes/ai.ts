@@ -4,10 +4,10 @@
  * Every AI call is audit-logged. Model routes 503 cleanly without a key.
  */
 import { Router, Request, Response } from 'express';
-import { facilityScope, requireRole } from '../middleware/auth';
-import { audit, ah } from '../middleware/errors';
-import { getStudyContext, getReportingTemplate, getPreviousReports } from '../ai/tools';
-import { aiEnabled, draftSkeleton, polishFindings } from '../ai/gemini';
+import { facilityScope, requireRole } from '../middleware/auth.js';
+import { audit, ah } from '../middleware/errors.js';
+import { getStudyContext, getReportingTemplate, getPreviousReports } from '../ai/tools.js';
+import { aiEnabled, draftSkeleton, polishFindings } from '../ai/gemini.js';
 
 export const aiRouter = Router();
 

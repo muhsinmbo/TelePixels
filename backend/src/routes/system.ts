@@ -2,10 +2,10 @@
  * System settings + append-only audit logs.
  */
 import { Router, Request, Response } from 'express';
-import { dbQuery } from '../database/db';
-import { requireAuth, requireRole } from '../middleware/auth';
-import { Validators } from '../middleware/validate';
-import { getPage, pageClause } from '../middleware/paginate';
+import { dbQuery } from '../database/db.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { Validators } from '../middleware/validate.js';
+import { getPage, pageClause } from '../middleware/paginate.js';
 
 export const systemRouter = Router();
 

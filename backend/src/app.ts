@@ -3,11 +3,11 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
-import { backendRouter } from './routes/index';
-import { assertDbConnected } from './database/db';
-import { notFound, errorHandler } from './middleware/errors';
+import { backendRouter } from './routes/index.js';
+import { assertDbConnected } from './database/db.js';
+import { notFound, errorHandler } from './middleware/errors.js';
 import helmet from 'helmet';
-import { apiLimiter } from './middleware/rateLimit';
+import { apiLimiter } from './middleware/rateLimit.js';
 
 export const app = express();
 const PORT = Number(process.env.PORT || 4000);

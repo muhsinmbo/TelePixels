@@ -6,10 +6,10 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import { dbQuery } from '../database/db';
-import { signToken, requireAuth } from '../middleware/auth';
-import { authLimiter } from '../middleware/rateLimit';
-import { audit, ah } from '../middleware/errors';
+import { dbQuery } from '../database/db.js';
+import { signToken, requireAuth } from '../middleware/auth.js';
+import { authLimiter } from '../middleware/rateLimit.js';
+import { audit, ah } from '../middleware/errors.js';
 
 export const authRouter = Router();
 

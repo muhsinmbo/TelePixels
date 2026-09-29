@@ -4,11 +4,11 @@
  */
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
-import { dbQuery } from '../database/db';
-import { requireRole } from '../middleware/auth';
-import { Validators, splitMeta } from '../middleware/validate';
-import { audit } from '../middleware/errors';
-import { withMeta } from './patients';
+import { dbQuery } from '../database/db.js';
+import { requireRole } from '../middleware/auth.js';
+import { Validators, splitMeta } from '../middleware/validate.js';
+import { audit } from '../middleware/errors.js';
+import { withMeta } from './patients.js';
 
 export const reportsRouter = Router();
 

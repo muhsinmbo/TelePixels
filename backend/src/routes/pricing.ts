@@ -2,9 +2,9 @@
  * Facility pricing: admins propose (pending), superadmin approves.
  */
 import { Router, Request, Response } from 'express';
-import { dbQuery } from '../database/db';
-import { requireAuth, requireRole, facilityScope } from '../middleware/auth';
-import { audit } from '../middleware/errors';
+import { dbQuery } from '../database/db.js';
+import { requireAuth, requireRole, facilityScope } from '../middleware/auth.js';
+import { audit } from '../middleware/errors.js';
 
 export const pricingRouter = Router();
 

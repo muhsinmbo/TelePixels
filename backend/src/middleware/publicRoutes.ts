@@ -3,7 +3,7 @@
  * (Kept in one place + unit-tested so a future edit can't silently open data.)
  */
 import { Request, Response, NextFunction } from 'express';
-import { requireAuth } from './auth';
+import { requireAuth } from './auth.js';
 
 export const PUBLIC_ROUTES = new Set([
   'POST /auth/login',

@@ -5,11 +5,11 @@
  */
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
-import { dbQuery } from '../database/db';
-import { facilityScope } from '../middleware/auth';
-import { Validators, splitMeta } from '../middleware/validate';
-import { getPage, pageClause } from '../middleware/paginate';
-import { audit } from '../middleware/errors';
+import { dbQuery } from '../database/db.js';
+import { facilityScope } from '../middleware/auth.js';
+import { Validators, splitMeta } from '../middleware/validate.js';
+import { getPage, pageClause } from '../middleware/paginate.js';
+import { audit } from '../middleware/errors.js';
 
 export const patientsRouter = Router();
 

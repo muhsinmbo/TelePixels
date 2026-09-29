@@ -4,11 +4,11 @@
  */
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
-import { dbQuery } from '../database/db';
-import { Validators, splitMeta } from '../middleware/validate';
-import { audit, ah } from '../middleware/errors';
-import { isS3, s3ReadUrl, s3Delete } from '../storage/s3';
-import { withMeta } from './patients';
+import { dbQuery } from '../database/db.js';
+import { Validators, splitMeta } from '../middleware/validate.js';
+import { audit, ah } from '../middleware/errors.js';
+import { isS3, s3ReadUrl, s3Delete } from '../storage/s3.js';
+import { withMeta } from './patients.js';
 
 export const imagesRouter = Router();
 

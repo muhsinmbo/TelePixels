@@ -3,8 +3,8 @@
  * These map 1:1 to future MCP tools; the HTTP routes below are thin wrappers.
  * The model never gets DB access, only these shaped outputs.
  */
-import { dbQuery } from '../database/db';
-import { withMeta } from '../routes/patients';
+import { dbQuery } from '../database/db.js';
+import { withMeta } from '../routes/patients.js';
 
 export interface StudyContext {
   requestId: string; patientId: string;

@@ -3,19 +3,19 @@
  * Old monolithic memoryDb implementation removed.
  */
 import { Router } from 'express';
-import { authGate } from '../middleware/publicRoutes';
-import { authRouter } from './auth';
-import { usersRouter } from './users';
-import { patientsRouter } from './patients';
-import { requestsRouter } from './requests';
-import { imagesRouter } from './images';
-import { reportsRouter } from './reports';
-import { pricingRouter } from './pricing';
-import { systemRouter } from './system';
-import { portalRouter } from './portal';
-import { storageRouter } from './storage';
-import { aiRouter } from './ai';
-import { docsRouter } from './docs';
+import { authGate } from '../middleware/publicRoutes.js';
+import { authRouter } from './auth.js';
+import { usersRouter } from './users.js';
+import { patientsRouter } from './patients.js';
+import { requestsRouter } from './requests.js';
+import { imagesRouter } from './images.js';
+import { reportsRouter } from './reports.js';
+import { pricingRouter } from './pricing.js';
+import { systemRouter } from './system.js';
+import { portalRouter } from './portal.js';
+import { storageRouter } from './storage.js';
+import { aiRouter } from './ai.js';
+import { docsRouter } from './docs.js';
 
 export const backendRouter = Router();
 

@@ -3,7 +3,7 @@
  * All routes return { error: string } on failure; audit() writes append-only logs.
  */
 import { Request, Response, NextFunction } from 'express';
-import { dbQuery } from '../database/db';
+import { dbQuery } from '../database/db.js';
 
 export function notFound(_req: Request, res: Response) {
   res.status(404).json({ error: 'Not found' });

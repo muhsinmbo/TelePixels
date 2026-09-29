@@ -2,8 +2,8 @@
  * Public patient portal: MRN + access code only. Rate-limited, minimal data.
  */
 import { Router, Request, Response } from 'express';
-import { dbQuery } from '../database/db';
-import { portalLimiter } from '../middleware/rateLimit';
+import { dbQuery } from '../database/db.js';
+import { portalLimiter } from '../middleware/rateLimit.js';
 
 export const portalRouter = Router();
 

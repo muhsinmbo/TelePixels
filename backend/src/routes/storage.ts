@@ -8,8 +8,8 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { isS3, s3Upload, s3ReadUrl, safeKey } from '../storage/s3';
-import { ah } from '../middleware/errors';
+import { isS3, s3Upload, s3ReadUrl, safeKey } from '../storage/s3.js';
+import { ah } from '../middleware/errors.js';
 
 export const storageRouter = Router();
 

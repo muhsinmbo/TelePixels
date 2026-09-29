@@ -4,12 +4,12 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import { dbQuery } from '../database/db';
-import { requireRole } from '../middleware/auth';
-import { Validators, splitMeta } from '../middleware/validate';
-import { getPage, pageClause } from '../middleware/paginate';
-import { audit } from '../middleware/errors';
-import { withMeta } from './patients';
+import { dbQuery } from '../database/db.js';
+import { requireRole } from '../middleware/auth.js';
+import { Validators, splitMeta } from '../middleware/validate.js';
+import { getPage, pageClause } from '../middleware/paginate.js';
+import { audit } from '../middleware/errors.js';
+import { withMeta } from './patients.js';
 
 export const usersRouter = Router();
 
