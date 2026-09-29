@@ -31,5 +31,5 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npx tsc --noEmit
+      - run: npx tsc --noEmit --project tsconfig.frontend.json
       - run: npm run build
