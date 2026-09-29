@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc, updateDoc, collection, query, orderBy, limit, getDocs, serverTimestamp, db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
-import { cn, formatGhanaPhoneNumber } from '../lib/utils';
+import { cn, formatAmount, formatGhanaPhoneNumber, toFiniteNumber } from '../lib/utils';
 import { UserPlus, ClipboardList, Search, X, Banknote, Save, Trash2, ShieldAlert, ChevronDown, ChevronRight, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { logAction } from '../services/loggerService';
@@ -106,7 +106,10 @@ export default function EditPatientIntake() {
         // 3. Fetch Pricing
         const facilityId = 'default-facility';
         const pricingSnap = await getDocs(collection(db, 'facilities', facilityId, 'pricing'));
-        setPricing(pricingSnap.docs.map(doc => doc.data() as PriceConfig));
+        setPricing(pricingSnap.docs.map(doc => {
+          const data = doc.data();
+          return { ...data, price: toFiniteNumber(data.price) } as PriceConfig;
+        }));
 
       } catch (error) {
         console.error('Error fetching patient data:', error);
@@ -212,8 +215,8 @@ export default function EditPatientIntake() {
         name: partObj.name,
         laterality: partObj.laterality,
         modality: partObj.modality || getModalityForProcedure(partObj.name),
-        price: (config?.price || 0) * multiplier + reportingFee + sonographerFee,
-        basePrice: (config?.price || 0) * multiplier,
+        price: toFiniteNumber(config?.price) * multiplier + reportingFee + sonographerFee,
+        basePrice: toFiniteNumber(config?.price) * multiplier,
         reportingFee: reportingFee,
         sonographerFee: sonographerFee,
         needsReport: isPartUltrasound ? false : !!(requestData.needsReport && partObj.needsReport),
@@ -709,7 +712,7 @@ export default function EditPatientIntake() {
                               {filteredProcs.map(part => {
                                 const config = pricing.find(p => p.partName === part);
                                 const isSelected = requestData.selectedParts.some(p => p.name === part);
-                                const activePrice = config?.price || 0;
+                                const activePrice = toFiniteNumber(config?.price);
                                 
                                 return (
                                   <button
@@ -726,7 +729,7 @@ export default function EditPatientIntake() {
                                       "text-[9px] font-mono",
                                       isSelected ? configTerm.priceSelected : configTerm.priceUnselected
                                     )}>
-                                      GHS {activePrice.toFixed(2)}
+                                      GHS {formatAmount(activePrice)}
                                     </span>
                                   </button>
                                 );
@@ -781,7 +784,7 @@ export default function EditPatientIntake() {
                                   {filteredSpecialProcedures.map(part => {
                                     const config = pricing.find(p => p.partName === part);
                                     const isSelected = requestData.selectedParts.some(p => p.name === part);
-                                    const activePrice = config?.price || 0;
+                                    const activePrice = toFiniteNumber(config?.price);
                                     const xrayTheme = getModalityThemeConfig('X-Ray');
                                     
                                     return (
@@ -802,7 +805,7 @@ export default function EditPatientIntake() {
                                           "text-[9px] font-mono",
                                           isSelected ? xrayTheme.priceSelected : xrayTheme.priceUnselected
                                         )}>
-                                          GHS {activePrice.toFixed(2)}
+                                          GHS {formatAmount(activePrice)}
                                         </span>
                                       </button>
                                     );
@@ -937,19 +940,15 @@ export default function EditPatientIntake() {
                         <div className="space-y-0.5">
                           <span className="text-[10px] text-muted uppercase font-black tracking-widest">Estimated Total</span>
                           <p className="text-xl font-mono text-primary font-bold">
-                            GHS {
-                              requestData.selectedParts
-                                .reduce((acc, partObj) => {
+                            GHS {formatAmount(requestData.selectedParts.reduce((acc, partObj) => {
                                   const config = pricing.find(p => p.partName === partObj.name);
                                   const isExtremity = EXTREMITIES.includes(partObj.name);
                                   const multiplier = (partObj.laterality === 'Both' && isExtremity) ? 2 : 1;
                                   const isPartUltrasound = partObj.modality === 'Ultrasound' || ULTRASOUND_PROCEDURES.includes(partObj.name);
                                   const reportingFee = isPartUltrasound ? 0 : ((requestData.needsReport && partObj.needsReport) ? 50 : 0);
                                   const sonographerFee = isPartUltrasound ? 50 : 0;
-                                  return acc + ((config?.price || 0) * multiplier) + reportingFee + sonographerFee;
-                                }, 0)
-                                .toFixed(2)
-                            }
+                                  return acc + (toFiniteNumber(config?.price) * multiplier) + reportingFee + sonographerFee;
+                                }, 0))}
                           </p>
                         </div>
                         <Banknote className="w-8 h-8 text-primary/20" />

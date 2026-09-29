@@ -11,7 +11,7 @@ import {
   Download, FileText, Activity, AlertCircle, ChevronDown, CheckCircle2,
   DollarSign, PieChart as PieChartIcon, Wallet, CreditCard
 } from 'lucide-react';
-import { cn, formatDate } from '../lib/utils';
+import { cn, formatDate, toFiniteNumber } from '../lib/utils';
 import { handleFirestoreError, OperationType } from '../firebase';
 
 // Colors
@@ -107,7 +107,7 @@ export default function Analytics() {
       
       dailyVolume[dateStr] = (dailyVolume[dateStr] || 0) + 1;
       
-      const price = req.totalCost || 0;
+      const price = toFiniteNumber(req.totalCost);
       dailyRevenue[dateStr] = (dailyRevenue[dateStr] || 0) + price;
     });
 
@@ -138,12 +138,12 @@ export default function Analytics() {
             mod = 'ECG';
           }
           modalities[mod] = (modalities[mod] || 0) + 1;
-          modalityRevenue[mod] = (modalityRevenue[mod] || 0) + (proc.price || 0);
+          modalityRevenue[mod] = (modalityRevenue[mod] || 0) + toFiniteNumber(proc.price);
         });
       } else {
         const mod = req.modalities?.[0] || 'OT';
         modalities[mod] = (modalities[mod] || 0) + 1;
-        const price = req.totalCost || 0;
+        const price = toFiniteNumber(req.totalCost);
         modalityRevenue[mod] = (modalityRevenue[mod] || 0) + price;
       }
     });
@@ -161,7 +161,7 @@ export default function Analytics() {
     let totalRevenue = 0;
     
     filteredRequests.forEach(req => {
-      const price = req.totalCost || 0;
+      const price = toFiniteNumber(req.totalCost);
       totalRevenue += price;
 
       if (req.procedures && Array.isArray(req.procedures)) {
@@ -169,7 +169,7 @@ export default function Analytics() {
           // Calculate payout for THIS specific procedure (Radiologist)
           let procPayout = 0;
           if (proc.reportingFee !== undefined) {
-            procPayout = proc.reportingFee;
+            procPayout = toFiniteNumber(proc.reportingFee);
           } else if (proc.needsReport) {
             procPayout = 50;
           }
@@ -186,7 +186,7 @@ export default function Analytics() {
 
           // Sonographer Report requirement payout (always GHS 50 if the procedure is Ultrasound)
           const isPartUltrasound = ULTRASOUND_PROCEDURES.includes(proc.name);
-          const sonographerFee = proc.sonographerFee !== undefined ? proc.sonographerFee : (isPartUltrasound ? 50 : 0);
+          const sonographerFee = proc.sonographerFee !== undefined ? toFiniteNumber(proc.sonographerFee) : (isPartUltrasound ? 50 : 0);
           if (sonographerFee > 0) {
             const onoName = req.sonographerWorksheet?.sonographerName || 'Sonographer (General)';
             if (!specialistStats[onoName]) specialistStats[onoName] = { count: 0, revenue: 0, payout: 0, partsReported: 0 };

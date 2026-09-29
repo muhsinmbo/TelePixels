@@ -13,6 +13,15 @@ export default defineConfig(({ mode }) => {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
     resolve: {
+      dedupe: [
+        'react',
+        'react-dom',
+        'cornerstone-core',
+        'cornerstone-tools',
+        'cornerstone-math',
+        'cornerstone-wado-image-loader',
+        'cornerstone-web-image-loader',
+      ],
       alias: {
         '@': path.resolve(__dirname, 'frontend/src'),
         'firebase/firestore': path.resolve(__dirname, 'frontend/src/api/live.ts'),

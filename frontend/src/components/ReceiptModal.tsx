@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Printer, HeartPulse, QrCode, Key } from 'lucide-react';
-import { formatDate } from '../lib/utils';
+import { formatAmount, formatDate } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, onSnapshot, db } from '../firebase';
@@ -287,12 +287,12 @@ export default function ReceiptModal({ isOpen, onClose, patient, facilityName, f
                       ${p.name}
                       ${p.laterality && p.laterality !== 'None' ? `<span class="item-spec">Side: ${p.laterality}</span>` : ''}
                     </span>
-                    <span class="item-val bold">${p.currency || 'GHS'} ${p.price.toFixed(2)}</span>
+                    <span class="item-val bold">${p.currency || 'GHS'} ${formatAmount(p.price)}</span>
                   </div>
                 `).join('') : `
                 <div class="item-row">
                   <span class="item-desc">${patient.bodyParts || 'General Imaging'}</span>
-                  <span class="item-val bold">GHS ${patient.totalCost?.toFixed(2) || '0.00'}</span>
+                  <span class="item-val bold">GHS ${formatAmount(patient.totalCost)}</span>
                 </div>
               `}
             </div>
@@ -301,7 +301,7 @@ export default function ReceiptModal({ isOpen, onClose, patient, facilityName, f
 
             <div class="total-block">
               <span>TOTAL PAID</span>
-              <span>GHS ${patient.totalCost?.toFixed(2) || '0.00'}</span>
+              <span>GHS ${formatAmount(patient.totalCost)}</span>
             </div>
 
 
@@ -474,7 +474,7 @@ export default function ReceiptModal({ isOpen, onClose, patient, facilityName, f
                         <div key={p.name} className="space-y-0.5 text-[10.5px]">
                           <div className="flex justify-between font-bold">
                             <span className="truncate max-w-[160px]">{p.name}</span>
-                            <span>{(p as any).currency || 'GHS'} {p.price.toFixed(2)}</span>
+                            <span>{(p as any).currency || 'GHS'} {formatAmount(p.price)}</span>
                           </div>
                           {p.laterality && p.laterality !== 'None' && (
                             <div className="text-[8.5px] uppercase opacity-75 font-semibold text-left pl-1">
@@ -486,7 +486,7 @@ export default function ReceiptModal({ isOpen, onClose, patient, facilityName, f
                     ) : (
                       <div className="flex justify-between text-[10.5px]">
                         <span>{patient.bodyParts || 'General Imaging'}</span>
-                        <span className="font-bold">GHS {patient.totalCost?.toFixed(2) || '0.00'}</span>
+                        <span className="font-bold">GHS {formatAmount(patient.totalCost)}</span>
                       </div>
                     )}
                   </div>
@@ -495,7 +495,7 @@ export default function ReceiptModal({ isOpen, onClose, patient, facilityName, f
 
                   <div className="flex justify-between items-center text-[12px] font-extrabold pb-1">
                     <span>TOTAL PAID</span>
-                    <span>GHS {patient.totalCost?.toFixed(2) || '0.00'}</span>
+                    <span>GHS {formatAmount(patient.totalCost)}</span>
                   </div>
 
 

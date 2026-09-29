@@ -6,6 +6,15 @@ import { cn } from '../../lib/utils';
 import { HeartPulse, ChevronLeft, ChevronRight } from 'lucide-react';
 import ContextMenu from './ContextMenu';
 
+function resolveImageId(imageId: string): string {
+  const scheme = imageId.match(/^([a-z][a-z\d+.-]*):/i)?.[1].toLowerCase();
+  if (scheme && scheme !== 'http' && scheme !== 'https') return imageId;
+
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  const url = scheme ? imageId : new URL(imageId, apiBaseUrl).href;
+  return /\.(dcm|dicom)$/i.test(new URL(url).pathname) ? `wadouri:${url}` : url;
+}
+
 interface ViewportProps {
   index: number;
   imageIds?: string[];
@@ -189,15 +198,20 @@ export default function Viewport({ index, imageIds = [] }: ViewportProps) {
     const element = elementRef.current;
     if (!element || !isInitialized || imageIds.length === 0) return;
 
+    const resolvedImageIds = imageIds
+      .filter((imageId): imageId is string => typeof imageId === 'string' && imageId.trim().length > 0)
+      .map(resolveImageId);
+    if (resolvedImageIds.length === 0) return;
+
     const stack = {
       currentImageIdIndex: 0,
-      imageIds: imageIds,
+      imageIds: resolvedImageIds,
     };
 
     setLoading(true);
-    console.log('Viewport: Loading image', imageIds[0]);
+    console.log('Viewport: Loading image', resolvedImageIds[0]);
 
-    cornerstone.loadImage(imageIds[0]).then((image) => {
+    cornerstone.loadImage(resolvedImageIds[0]).then((image) => {
       // Re-verify everything after async call
       if (!isInitialized || !elementRef.current || imageIds.length === 0) return;
       
@@ -257,7 +271,7 @@ export default function Viewport({ index, imageIds = [] }: ViewportProps) {
       }
       setLoading(false);
     }).catch(err => {
-      console.error('Viewport: Failed to load image', imageIds[0], err);
+      console.error('Viewport: Failed to load image', resolvedImageIds[0], err);
       setLoading(false);
     });
   }, [imageIds, isInitialized]);

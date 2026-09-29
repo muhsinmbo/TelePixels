@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, orderBy, limit, onSnapshot, getDocs, where, doc, updateDoc, setDoc, serverTimestamp, collectionGroup, getDoc, deleteDoc, db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { formatDate, sanitizeDocId } from '../lib/utils';
+import { formatAmount, formatDate, sanitizeDocId, toFiniteNumber } from '../lib/utils';
 import { Shield, Activity, Users, Building2, Search, Filter, ArrowUpRight, TrendingUp, History, UserCheck, UserX, Mail, UserCog, Layout, Plus, Pencil, X, Banknote, DollarSign, Trash2, Check, XCircle, ShieldAlert, Download, Loader2, FileText, Vote } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { toast } from 'react-hot-toast';
@@ -242,7 +242,14 @@ export default function AdminPortal() {
     
     const qPricing = collection(db, 'facilities', facilityId, 'pricing');
     const unsubscribePricing = onSnapshot(qPricing, (snapshot) => {
-      const pricingData = snapshot.docs.map(doc => doc.data() as PriceConfig);
+      const pricingData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          price: toFiniteNumber(data.price),
+          pendingPrice: data.pendingPrice == null ? undefined : toFiniteNumber(data.pendingPrice),
+        } as PriceConfig;
+      });
       setPricing(pricingData);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, `facilities/${facilityId}/pricing`);
@@ -1331,7 +1338,7 @@ export default function AdminPortal() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-main mb-1 truncate" title={part}>{part}</p>
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-[10px] text-muted uppercase font-bold tracking-wider">Active: GHS {config?.price?.toFixed(2) || '0.00'}</p>
+                              <p className="text-[10px] text-muted uppercase font-bold tracking-wider">Active: GHS {formatAmount(config?.price)}</p>
                               {hasPending && (
                                 <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-500 rounded text-[8px] font-bold animate-pulse">
                                   Pending Review
@@ -1383,7 +1390,7 @@ export default function AdminPortal() {
                                   className="w-full py-2.5 bg-primary text-black text-[10px] font-black uppercase rounded-lg hover:bg-primary/80 transition-all shadow-lg shadow-primary/10 flex items-center justify-center gap-2"
                                 >
                                   <Activity className="w-3 h-3" />
-                                  Commit GHS {config.pendingPrice?.toFixed(2)}
+                                  Commit GHS {formatAmount(config.pendingPrice)}
                                 </button>
                               ) : (
                                 <div className="p-2.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-center">

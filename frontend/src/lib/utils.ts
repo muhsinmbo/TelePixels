@@ -5,6 +5,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function toFiniteNumber(value: unknown, fallback = 0): number {
+  const number = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Number(value)
+      : Number.NaN;
+  return Number.isFinite(number) ? number : fallback;
+}
+
+export function formatAmount(value: unknown, fractionDigits = 2): string {
+  return toFiniteNumber(value).toFixed(fractionDigits);
+}
+
 export function formatDate(date: any) {
   if (!date) return 'N/A';
   const d = date.toDate ? date.toDate() : new Date(date);

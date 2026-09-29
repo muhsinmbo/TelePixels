@@ -39,18 +39,21 @@ export function initCornerstone() {
     cornerstoneTools.toolColors.setFillColor('rgba(0, 242, 254, 0.2)');
 
     // 3. Configure Loaders
+    const wado = (cornerstoneWADOImageLoader as any).default || cornerstoneWADOImageLoader;
+    const web = (cornerstoneWebImageLoader as any).default || cornerstoneWebImageLoader;
+    wado.external.cornerstone = cornerstone;
+    wado.external.dicomParser = dicomParser;
     // @ts-ignore
-    cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
-    // @ts-ignore
-    cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
-    // @ts-ignore
-    cornerstoneWebImageLoader.external.cornerstone = cornerstone;
+    web.external.cornerstone = cornerstone;
+
+    wado.wadouri.register(cornerstone);
+    wado.wadors.register(cornerstone);
 
     // Explicitly register the web image loader for all common web schemes
-    const webLoader = cornerstoneWebImageLoader.loadImage || (cornerstoneWebImageLoader as any).default?.loadImage || (cornerstoneWebImageLoader as any).loadImage;
+    const webLoader = web.loadImage;
     
     if (webLoader) {
-      console.log('Cornerstone: Registering web image loader for schemes: web, http, https, data');
+      console.log('Cornerstone: Registering web image loader for schemes: web, http, https, data, blob');
       // @ts-ignore
       cornerstone.registerImageLoader('web', webLoader);
       // @ts-ignore
@@ -59,6 +62,8 @@ export function initCornerstone() {
       cornerstone.registerImageLoader('https', webLoader);
       // @ts-ignore
       cornerstone.registerImageLoader('data', webLoader);
+      // @ts-ignore
+      cornerstone.registerImageLoader('blob', webLoader);
     } else {
       console.warn('Cornerstone: Web image loader NOT found. Checked .loadImage, .default.loadImage');
     }
