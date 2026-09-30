@@ -11,6 +11,7 @@ interface AccessPassModalProps {
   onClose: () => void;
   patient: {
     id: string;
+    mrn?: string;
     name: string;
     requestId?: string;
     accessCode?: string;
@@ -44,7 +45,11 @@ export default function AccessPassModal({ isOpen, onClose, patient, facilityName
     ? facilityLogo 
     : (sysInfo.logo || profile?.facilityLogo || "/logo.png");
 
-  const portalUrl = `${window.location.origin}/portal/${patient.id}/${patient.accessCode}`;
+  const portalUrl = new URL(
+    `/portal/${encodeURIComponent(patient.mrn || patient.id)}/${encodeURIComponent(patient.accessCode || '')}`,
+    window.location.origin
+  );
+  if (patient.requestId) portalUrl.searchParams.set('requestId', patient.requestId);
   const displayUrl = `${window.location.host}/portal`;
 
   const printPass = () => {
@@ -363,7 +368,7 @@ export default function AccessPassModal({ isOpen, onClose, patient, facilityName
                 </div>
                 <div class="data-row">
                   <span class="data-label">Patient ID / MRN:</span>
-                  <span class="data-value" style="font-family: monospace;">${patient.id}</span>
+                  <span class="data-value" style="font-family: monospace;">${patient.mrn || patient.id}</span>
                 </div>
               </div>
               <div>
@@ -382,7 +387,7 @@ export default function AccessPassModal({ isOpen, onClose, patient, facilityName
           <div class="highlight-box">
             <div class="hl-item" style="border-right: 1px solid #d1d5db; padding-right: 20px;">
               <span class="hl-label">1. Medical Record Number (MRN)</span>
-              <span class="hl-value">${patient.id}</span>
+              <span class="hl-value">${patient.mrn || patient.id}</span>
             </div>
             <div class="hl-item" style="padding-left: 20px;">
               <span class="hl-label">2. Secure Verification Code</span>
@@ -532,7 +537,7 @@ export default function AccessPassModal({ isOpen, onClose, patient, facilityName
 
                   <div className="w-32 h-32 p-2 bg-white border border-black/10 rounded-xl" id="qr-code-pass">
                     <QRCodeSVG 
-                      value={portalUrl} 
+                      value={portalUrl.toString()}
                       size={112}
                       level="H"
                     />

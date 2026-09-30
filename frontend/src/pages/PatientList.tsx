@@ -11,6 +11,7 @@ import AccessPassModal from '../components/AccessPassModal';
 
 interface Patient {
   id: string;
+  mrn?: string;
   name: string;
   age: number;
   gender: string;
@@ -361,6 +362,7 @@ export default function PatientList() {
           onClose={() => setSelectedPatientForPass(null)}
           patient={{
             id: selectedPatientForPass.id,
+            mrn: selectedPatientForPass.mrn,
             name: selectedPatientForPass.name,
             requestId: selectedPatientForPass.lastRequestId,
             accessCode: selectedPatientForPass.lastAccessCode

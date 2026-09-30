@@ -475,7 +475,7 @@ export const api = {
 
   // Patient Portal Access
   portal: {
-    async verify(mrn: string, accessCode: string) {
+    async verify(mrn: string, accessCode: string, requestId?: string) {
       return request<{
         patient: Patient;
         requests: ImagingRequest[];
@@ -483,7 +483,7 @@ export const api = {
         reports: Record<string, Report[]>;
       }>('/api/portal/verify', {
         method: 'POST',
-        body: JSON.stringify({ mrn, accessCode }),
+        body: JSON.stringify({ mrn, accessCode, requestId }),
       });
     }
   },

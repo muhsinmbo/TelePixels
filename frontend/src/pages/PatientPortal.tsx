@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams, useNavigate, NavLink } from 'react-router-dom';
-import { doc, getDocs, collection, collectionGroup, onSnapshot, query, where, orderBy, serverTimestamp, updateDoc, addDoc, db } from '../firebase';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { doc, onSnapshot, db } from '../firebase';
+import { api } from '../api/apiClient';
 import { logAction } from '../services/loggerService';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
@@ -638,11 +638,12 @@ export default function PatientPortal() {
     }
   }, [showPhysicianAuthModal, request, facilityInfo]);
 
-  const handleLogin = useCallback(async (e?: React.FormEvent, overrideMrn?: string, overrideCode?: string) => {
+  const handleLogin = useCallback(async (e?: React.FormEvent, overrideMrn?: string, overrideCode?: string, overrideRequestId?: string) => {
     if (e) e.preventDefault();
     const rawMrn = (overrideMrn || mrn).trim();
     const targetCode = (overrideCode || accessCode).trim();
     const targetMrn = rawMrn.toUpperCase();
+    const targetRequestId = overrideRequestId || searchParams.get('requestId') || undefined;
 
     if (!rawMrn || !targetCode) return;
 
@@ -650,69 +651,33 @@ export default function PatientPortal() {
     setError(null);
 
     try {
-      let requestDoc: any = null;
-      let requestData: RequestData | null = null;
+      const portalData = await api.portal.verify(targetMrn, targetCode, targetRequestId);
+      const requestData = portalData.requests[0] as RequestData | undefined;
+      if (!requestData) throw new Error('Invalid Patient ID or Access Code. Please check your QR code or examination slip.');
 
-      // 1. Primary check: specific patient requests collection (Uppercase MRN)
-      let requestsRef = collection(db, 'patients', targetMrn, 'requests');
-      let q = query(requestsRef, where('accessCode', '==', targetCode));
-      let querySnapshot = await getDocs(q);
-
-      // 2. Secondary check: raw MRN casing
-      if (querySnapshot.empty && rawMrn !== targetMrn) {
-        requestsRef = collection(db, 'patients', rawMrn, 'requests');
-        q = query(requestsRef, where('accessCode', '==', targetCode));
-        querySnapshot = await getDocs(q);
-      }
-
-      if (!querySnapshot.empty) {
-        requestDoc = querySnapshot.docs[0];
-        requestData = requestDoc.data() as RequestData;
-      } else {
-        // 3. Fallback: collectionGroup query across all requests by accessCode
-        const groupQ = query(collectionGroup(db, 'requests'), where('accessCode', '==', targetCode));
-        const groupSnap = await getDocs(groupQ);
-        if (!groupSnap.empty) {
-          const matchedDoc = groupSnap.docs.find(d => {
-            const data = d.data() as RequestData;
-            return data.patientId?.toUpperCase() === targetMrn || d.ref.parent?.parent?.id?.toUpperCase() === targetMrn;
-          }) || groupSnap.docs[0];
-
-          requestDoc = matchedDoc;
-          requestData = matchedDoc.data() as RequestData;
-        }
-      }
-
-      if (!requestDoc || !requestData) {
-        throw new Error('Invalid Patient ID or Access Code. Please check your QR code or examination slip.');
-      }
-
-      if (['Completed', 'Finalized'].includes(requestData.status)) {
-        if (!requestData.patientNotified) {
-          const updateData: any = {
-            patientNotified: true,
-            updatedAt: serverTimestamp()
-          };
-          if (!requestData.physicianPhone || requestData.physicianNotified) {
-            updateData.notificationSent = true;
-          }
-          updateDoc(requestDoc.ref, updateData).catch(err => console.error('Notification update failed:', err));
-        }
-      }
-
-      const imagesSnapshot = await getDocs(collection(requestDoc.ref, 'images'));
-      const imagesData = imagesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const patientData = portalData.patient;
+      const portalRequest = {
+        ...requestData,
+        patientName: patientData.name,
+        patientAge: patientData.age,
+        patientGender: patientData.gender,
+        accessCode: targetCode,
+      };
+      const imagesData = portalData.studies[requestData.id] || [];
 
       setPatient({
-        name: requestData.patientName,
-        age: (requestData as any).patientAge,
-        gender: (requestData as any).patientGender,
-        id: requestData.patientId || targetMrn
+        name: patientData.name,
+        age: patientData.age,
+        gender: patientData.gender,
+        id: patientData.id,
       });
-      setRequest({ id: requestDoc.id, ...requestData });
+      setRequest({ ...portalRequest, id: requestData.id });
       setImages(imagesData);
+      setReports(portalData.reports[requestData.id] || []);
+      setMrn(targetMrn);
+      setAccessCode(targetCode);
 
-      sessionStorage.setItem('portal_auth', JSON.stringify({ mrn: targetMrn, code: targetCode }));
+      sessionStorage.setItem('portal_auth', JSON.stringify({ mrn: targetMrn, code: targetCode, requestId: requestData.id }));
       
       logAction({
         action: 'PORTAL_LOGIN',
@@ -746,68 +711,23 @@ export default function PatientPortal() {
       setAttemptedUrlLogin(true);
       setMrn(targetMrn);
       setAccessCode(targetCode);
-      handleLogin(undefined, targetMrn, targetCode);
+      handleLogin(undefined, targetMrn, targetCode, searchParams.get('requestId') || undefined);
     } else if (savedAuth) {
       try {
-        const { mrn: sMrn, code: sCode } = JSON.parse(savedAuth);
+        const { mrn: sMrn, code: sCode, requestId: sRequestId } = JSON.parse(savedAuth);
         setMrn(sMrn);
         setAccessCode(sCode);
-        handleLogin(undefined, sMrn, sCode);
+        handleLogin(undefined, sMrn, sCode, sRequestId);
       } catch (e) {
         sessionStorage.removeItem('portal_auth');
       }
     }
   }, [searchParams, mrnFromPath, codeFromPath, request, loading, attemptedUrlLogin, handleLogin]);
 
-  // Real-time updates
-  useEffect(() => {
-    if (!request?.id || !patient?.id) return;
-    
-    const requestPath = `patients/${patient.id}/requests/${request.id}`;
-    
-    const unsubscribeImages = onSnapshot(collection(db, `${requestPath}/images`), (snapshot) => {
-      setImages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'portal/images'));
-
-    const unsubscribeRequest = onSnapshot(doc(db, requestPath), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data() as RequestData;
-        setRequest({ id: snapshot.id, ...data });
-      }
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'portal/request'));
-
-    const unsubscribePatient = onSnapshot(doc(db, `patients/${patient.id}`), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        setPatient({
-          name: data.name || patient.name,
-          age: data.age !== undefined ? data.age : patient.age,
-          gender: data.gender || patient.gender,
-          id: data.id || patient.id,
-          phone: data.phone || '',
-          email: data.email || '',
-          address: data.address || '',
-        });
-      }
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'portal/patient'));
-
-    const qReports = query(collection(db, `${requestPath}/reports`), where('isDraft', '==', false), orderBy('createdAt', 'desc'));
-    const unsubscribeReports = onSnapshot(qReports, (snapshot) => {
-      const reportsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setReports(reportsData.sort((a: any, b: any) => (a.procedureIdx || 0) - (b.procedureIdx || 0)));
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'portal/reports'));
-
-    return () => {
-      unsubscribeImages();
-      unsubscribeRequest();
-      unsubscribePatient();
-      unsubscribeReports();
-    };
-  }, [request?.id, patient?.id]);
-
   const handleDownloadImage = async (url: string, name: string) => {
     setDownloading(url);
-    const cleanImgName = `${name?.replace(/\s+/g, '_') || 'medical-image'}.png`;
+    const baseName = (name || 'medical-image').replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_').trim();
+    const cleanImgName = /\.[a-z0-9]{2,5}$/i.test(baseName) ? baseName : `${baseName}.png`;
     
     if (isInAppBrowser) {
       toast("In-App browser (such as Google Lens/Social Apps) detected. Downloads might be sandboxed. To save files, tap the three dots (⋮) in the top right and select 'Open in Safari/Chrome'.", { duration: 6000 });
