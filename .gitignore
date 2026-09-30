@@ -4,7 +4,17 @@ dist/
 coverage/
 .DS_Store
 *.log
+# Environment files may contain API keys, tokens, database URLs, and credentials.
 .env*
 !.env.example
+# Keep environment templates trackable at the root and in subdirectories.
+!.env.*.example
+# Local private keys and AWS credential profiles.
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+.aws/
 .neon
 uploads/
