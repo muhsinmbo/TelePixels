@@ -82,7 +82,7 @@ export default function ReportingPanel() {
       fetchRequestData();
 
       const reportsRef = collection(db, 'patients', patientId, 'requests', requestId, 'reports');
-      const unsubscribeReports = onSnapshot(reportsRef, { includeMetadataChanges: true }, (snapshot) => {
+      const unsubscribeReports = onSnapshot(reportsRef, (snapshot) => {
         const reportsMap: Record<number, any> = {};
         snapshot.docs.forEach(doc => {
           const data = doc.data();
@@ -93,7 +93,7 @@ export default function ReportingPanel() {
           }
         });
         setExistingReports(reportsMap);
-        if (!snapshot.metadata.fromCache) setReportsLoaded(true);
+        setReportsLoaded(true);
       }, (err) => {
         console.error('Error listening to reports in panel:', err);
       });
