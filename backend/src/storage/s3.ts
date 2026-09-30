@@ -6,7 +6,16 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-export const storageDriver = (process.env.STORAGE_DRIVER || 'local').toLowerCase();
+export const s3Configured = [
+  process.env.S3_ENDPOINT,
+  process.env.S3_BUCKET,
+  process.env.S3_ACCESS_KEY,
+  process.env.S3_SECRET_KEY,
+].every((value) => !!value?.trim());
+
+export const storageDriver = (
+  process.env.STORAGE_DRIVER || (s3Configured ? 's3' : 'local')
+).toLowerCase();
 export const isS3 = storageDriver === 's3';
 
 let client: S3Client | null = null;

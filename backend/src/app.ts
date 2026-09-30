@@ -8,6 +8,7 @@ import { assertDbConnected } from './database/db.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 import helmet from 'helmet';
 import { apiLimiter } from './middleware/rateLimit.js';
+import { storageDriver, s3Configured } from './storage/s3.js';
 
 export const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -55,7 +56,13 @@ app.use('/uploads', express.static(path.resolve(uploadDir), {
 }));
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'telepixels-backend', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    service: 'telepixels-backend',
+    storageDriver,
+    s3Configured,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use('/api', backendRouter);
