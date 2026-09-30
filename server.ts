@@ -7,15 +7,15 @@ import { createServer as createViteServer } from "vite";
 
 // Load root .env first, then backend/.env (backend values win for DB/auth keys)
 dotenv.config();
-dotenv.config({ path: path.join(process.cwd(), "backend", ".env") });
+dotenv.config({ path: path.join(process.cwd(), "backend", ".env"), override: true });
 
-import { backendRouter } from "./backend/src/routes/index";
 import { notFound, errorHandler } from "./backend/src/middleware/errors";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
+  const { backendRouter } = await import("./backend/src/routes/index");
   const app = express();
   const PORT = 3000;
 
