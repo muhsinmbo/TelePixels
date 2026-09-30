@@ -67,6 +67,7 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
   const [includePrevious, setIncludePrevious] = useState(false);
   const [polishing, setPolishing] = useState(false);
   const [polished, setPolished] = useState<{ findings: string; impression: string } | null>(null);
+  const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historyWarning, setHistoryWarning] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -139,6 +140,7 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
       const draft = splitPolished(res.polished);
       if (!draft.findings && !draft.impression) throw new Error('The assistant returned an empty draft');
       setPolished(draft);
+      setApplied(false);
       toast.success('Polished draft ready — review before applying');
     } catch (err: any) {
       console.error('AI report polishing failed:', err);
@@ -153,6 +155,7 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
   const handleApply = () => {
     if (!polished) return;
     onApply(polished.findings, polished.impression);
+    setApplied(true);
     toast.success('Applied to editor — review and finalize as usual');
   };
 
@@ -331,8 +334,14 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
       {polished && (
         <div className="space-y-3 p-4 rounded-xl bg-emerald-400/5 border border-emerald-400/20" aria-live="polite">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Unverified draft</p>
-            <p className="mt-1 text-[10px] text-muted">Review and edit the text below before applying it to the report.</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">
+              {applied ? 'Applied draft · preview retained' : 'Unverified draft'}
+            </p>
+            <p className="mt-1 text-[10px] text-muted">
+              {applied
+                ? 'This draft is in the report editor and remains here for review. Applying it does not finalize the report.'
+                : 'Review and edit the text below before applying it to the report.'}
+            </p>
           </div>
           {polished.findings && (
             <section>
@@ -352,7 +361,7 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
             className="glass-btn bg-emerald-400 text-black font-bold w-full py-2.5 flex items-center justify-center gap-2 hover:bg-emerald-300 transition-all active:scale-[0.99] cursor-pointer text-xs"
           >
             <ClipboardCheck className="w-4 h-4" />
-            <span>Apply to editor (you still review & finalize)</span>
+            <span>{applied ? 'Apply draft again' : 'Apply to editor (you still review & finalize)'}</span>
           </button>
         </div>
       )}
