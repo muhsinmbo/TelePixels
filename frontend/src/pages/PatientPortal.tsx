@@ -724,8 +724,10 @@ export default function PatientPortal() {
     }
   }, [searchParams, mrnFromPath, codeFromPath, request, loading, attemptedUrlLogin, handleLogin]);
 
-  const handleDownloadImage = async (url: string, name: string) => {
-    setDownloading(url);
+  const handleDownloadImage = async (image: any) => {
+    const url = image.url as string;
+    const name = image.name as string;
+    setDownloading(image.id || url);
     const baseName = (name || 'medical-image').replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_').trim();
     const cleanImgName = /\.[a-z0-9]{2,5}$/i.test(baseName) ? baseName : `${baseName}.png`;
     
@@ -742,11 +744,24 @@ export default function PatientPortal() {
         userEmail: `mrn_${mrn}@portal.local`
       });
 
-      // First try to fetch the image to convert to a local blob. 
-      // Local Blob URLs always support the HTML download attribute perfectly (even on mobile browsers).
+      if (image.downloadUrl) {
+        const link = document.createElement('a');
+        link.href = image.downloadUrl;
+        link.download = cleanImgName;
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast.success('Image download started!');
+        return;
+      }
+
       const response = await fetch(url);
       if (!response.ok) throw new Error('Fetch failed');
       const blob = await response.blob();
+      if (!blob.size || blob.type === 'text/html' || blob.type.includes('xml')) {
+        throw new Error('The server did not return an image file');
+      }
       const blobUrl = URL.createObjectURL(blob);
       
       const link = document.createElement('a');
@@ -762,25 +777,8 @@ export default function PatientPortal() {
       }, 150);
       toast.success('Image download started!');
     } catch (err: any) {
-      console.warn('Direct image download failed, using standard anchor download fallback:', err);
-      // Clean fallback: programmatically trigger standard direct save with the download attribute pointing directly to the URL
-      try {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = cleanImgName;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        
-        setTimeout(() => {
-          document.body.removeChild(link);
-        }, 150);
-        toast.success('Opening image for saving...');
-      } catch (openErr) {
-        toast.error('Could download. Please long-press the plate to save natively.');
-      }
+      console.warn('Image download failed:', err);
+      toast.error('Could not download image. Please try again later.');
     } finally {
       setDownloading(null);
     }
@@ -2201,7 +2199,7 @@ export default function PatientPortal() {
                       </button>
                     </div>
                     <button 
-                      onClick={() => handleDownloadImage(images[selectedImageIndex].url, images[selectedImageIndex].name)}
+                      onClick={() => handleDownloadImage(images[selectedImageIndex])}
                       className="px-6 py-4 rounded-2xl bg-primary text-black text-xs font-bold flex items-center gap-2 hover:bg-primary/80 transition-colors shadow-xl shadow-primary/30"
                     >
                       <Download className="w-4 h-4" />

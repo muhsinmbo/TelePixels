@@ -47,6 +47,19 @@ export async function s3ReadUrl(key: string, expiresIn = 3600): Promise<string> 
   return getSignedUrl(s3Client(), new GetObjectCommand({ Bucket: bucket(), Key: key }), { expiresIn });
 }
 
+export async function s3DownloadUrl(key: string, filename: string, expiresIn = 3600): Promise<string> {
+  const safeName = filename.replace(/[\\/\r\n"]/g, '_').trim() || 'download';
+  const asciiName = safeName.replace(/[^\x20-\x7E]/g, '_');
+  const encodedName = encodeURIComponent(safeName).replace(/['()*]/g, (char) =>
+    `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+  return getSignedUrl(s3Client(), new GetObjectCommand({
+    Bucket: bucket(),
+    Key: key,
+    ResponseContentDisposition: `attachment; filename="${asciiName}"; filename*=UTF-8''${encodedName}`,
+  }), { expiresIn });
+}
+
 export async function s3Delete(key: string): Promise<void> {
   await s3Client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));
 }

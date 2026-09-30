@@ -4,7 +4,7 @@
 import { Router, Request, Response } from 'express';
 import { dbQuery } from '../database/db.js';
 import { portalLimiter } from '../middleware/rateLimit.js';
-import { isS3, s3ReadUrl } from '../storage/s3.js';
+import { isS3, s3ReadUrl, s3DownloadUrl } from '../storage/s3.js';
 import { withMeta } from './patients.js';
 
 export const portalRouter = Router();
@@ -39,6 +39,7 @@ portalRouter.post('/portal/verify', portalLimiter, async (req: Request, res: Res
     if (isS3) {
       await Promise.all(images.map(async (image) => {
         image.url = await s3ReadUrl(image.storagePath);
+        image.downloadUrl = await s3DownloadUrl(image.storagePath, image.name);
       }));
     }
     studies[r.id] = images;

@@ -83,6 +83,7 @@ export interface StudyImage {
   id: string;
   name: string;
   url: string;
+  downloadUrl?: string;
   data?: string;
   storagePath: string;
   procedureId?: string;
