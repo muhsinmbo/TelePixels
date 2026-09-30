@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { api, AIStudyContext, AIReportTemplate, AIPreviousReport } from '../api/apiClient';
-import { Sparkles, Loader2, AlertCircle, ChevronDown, ClipboardCheck, Info } from 'lucide-react';
+import { Sparkles, Loader2, AlertCircle, ChevronDown, ClipboardCheck, Info, RefreshCw, ShieldCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -28,12 +28,31 @@ function toPlain(text: string): string {
 
 function splitPolished(markdown: string): { findings: string; impression: string } {
   const text = markdown || '';
-  const impMatch = text.split(/##\s*impression/i);
-  if (impMatch.length >= 2) {
-    const findings = impMatch[0].replace(/^##\s*findings/i, '').trim();
-    return { findings: toPlain(findings), impression: toPlain(impMatch.slice(1).join('\n')) };
+  const impressionMatch = text.match(/(?:^|\n)#{0,3}\s*impression\s*:?\s*\n?([\s\S]*)$/i);
+  if (impressionMatch) {
+    const findings = text.slice(0, impressionMatch.index).replace(/^#{1,3}\s*findings\s*:?\s*/i, '').trim();
+    return { findings: toPlain(findings), impression: toPlain(impressionMatch[1]) };
   }
-  return { findings: toPlain(text), impression: '' };
+  return { findings: toPlain(text.replace(/^#{1,3}\s*findings\s*:?\s*/i, '')), impression: '' };
+}
+
+function friendlyError(error: unknown, action: 'load' | 'polish'): string {
+  const message = error instanceof Error ? error.message : String(error || '');
+  if (/\b401\b|\b403\b|unauthori[sz]ed|forbidden/i.test(message)) {
+    return 'Your session may have expired or your role may not have access to AI reporting. Sign in again or contact an administrator.';
+  }
+  if (/\b429\b|quota|rate.?limit|resource exhausted/i.test(message)) {
+    return 'The AI service is temporarily at capacity. Your notes are unchanged; wait briefly and retry.';
+  }
+  if (/\b503\b|AI disabled|GEMINI_API_KEY|not configured/i.test(message)) {
+    return 'AI writing is not configured on the server. The report template remains available for manual completion.';
+  }
+  if (/failed to fetch|network|ECONN|timeout/i.test(message)) {
+    return 'The assistant could not reach the server. Check your connection and retry; your notes are unchanged.';
+  }
+  return action === 'load'
+    ? 'The assistant could not load study context. Retry, or continue using the report editor.'
+    : 'The assistant could not prepare a draft. Your notes are unchanged; review them and retry.';
 }
 
 export default function AIAssistantPanel({ patientId, requestId, currentFindings, onApply }: Props) {
@@ -49,6 +68,8 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
   const [polishing, setPolishing] = useState(false);
   const [polished, setPolished] = useState<{ findings: string; impression: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [historyWarning, setHistoryWarning] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,26 +77,48 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
       try {
         setLoading(true);
         setError(null);
-        setPolished(null);
-        const [ctx, draft, prev] = await Promise.all([
+        setHistoryWarning(false);
+        const [contextResult, draftResult, previousResult] = await Promise.allSettled([
           api.ai.context(patientId, requestId),
           api.ai.draft(patientId, requestId),
-          api.ai.previousReports(patientId, requestId, 5).catch(() => [] as AIPreviousReport[]),
+          api.ai.previousReports(patientId, requestId, 5),
         ]);
         if (cancelled) return;
+
+        if (contextResult.status === 'rejected') throw contextResult.reason;
+        const ctx = contextResult.value;
         setContext(ctx);
-        setTemplate(draft.template);
-        setSkeleton(draft.skeleton);
-        setModelDisabled(draft.modelDisabled);
-        setPrevious(prev);
+
+        if (draftResult.status === 'fulfilled') {
+          setTemplate(draftResult.value.template);
+          setSkeleton(draftResult.value.skeleton);
+          setModelDisabled(draftResult.value.modelDisabled);
+        } else {
+          setSkeleton(null);
+          setModelDisabled(false);
+          setError(friendlyError(draftResult.reason, 'load'));
+          try {
+            const fallbackTemplate = await api.ai.template(ctx.modality, ctx.examination, ctx.patientSex);
+            if (!cancelled) setTemplate(fallbackTemplate);
+          } catch {
+            if (!cancelled) setTemplate(null);
+          }
+        }
+
+        if (previousResult.status === 'fulfilled') {
+          setPrevious(previousResult.value);
+        } else {
+          setPrevious([]);
+          setHistoryWarning(true);
+        }
       } catch (err: any) {
-        if (!cancelled) setError(err.message || 'AI assistant unavailable');
+        if (!cancelled) setError(friendlyError(err, 'load'));
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [patientId, requestId]);
+  }, [patientId, requestId, loadAttempt]);
 
   // Keep notes in sync if the editor already has findings when the panel opens
   useEffect(() => {
@@ -91,13 +134,17 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
     try {
       setPolishing(true);
       setError(null);
+      setPolished(null);
       const res = await api.ai.polish(patientId, requestId, notes.trim(), includePrevious);
-      setPolished(splitPolished(res.polished));
+      const draft = splitPolished(res.polished);
+      if (!draft.findings && !draft.impression) throw new Error('The assistant returned an empty draft');
+      setPolished(draft);
       toast.success('Polished draft ready — review before applying');
     } catch (err: any) {
-      const msg = err.message || 'Polishing failed';
+      console.error('AI report polishing failed:', err);
+      const msg = friendlyError(err, 'polish');
       setError(msg);
-      toast.error(msg);
+      toast.error('Draft not created. Your notes remain unchanged.');
     } finally {
       setPolishing(false);
     }
@@ -120,9 +167,22 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
 
   if (error && !context) {
     return (
-      <div className="glass-panel p-6 flex items-start gap-2.5 text-xs text-red-400">
-        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-        <span>AI assistant unavailable: {error}</span>
+      <div className="glass-panel p-5 space-y-3" role="alert">
+        <div className="flex items-start gap-2.5 text-xs text-amber-300">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-sm text-main">AI assistant unavailable</p>
+            <p className="mt-1 text-muted leading-relaxed">{error}</p>
+            <p className="mt-2 text-muted">Your report editor remains available. No report was changed.</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+          className="glass-btn px-3 py-2 text-xs font-semibold flex items-center gap-2 cursor-pointer"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Retry assistant
+        </button>
       </div>
     );
   }
@@ -131,7 +191,7 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
   const sex = context?.patientSex ?? '';
 
   return (
-    <div className="glass-panel p-6 space-y-5">
+    <div className="glass-panel p-6 space-y-5" aria-busy={polishing}>
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
@@ -157,6 +217,11 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
           {context.clinicalHistory && <div className="mt-1">History: {context.clinicalHistory}</div>}
         </div>
       )}
+
+      <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-[11px] leading-relaxed text-muted">
+        <ShieldCheck className="w-4 h-4 shrink-0 text-primary" />
+        <p>Drafting support only. The assistant does not review images or make diagnoses. Verify every statement against the study before applying or signing.</p>
+      </div>
 
       {template && (
         <div>
@@ -200,6 +265,11 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
           )}
         </div>
       )}
+      {historyWarning && (
+        <p className="text-[10px] text-amber-300" role="status">
+          Previous reports could not be loaded. You can still draft from the current study context.
+        </p>
+      )}
 
       <div>
         <label className="text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5 block">
@@ -208,6 +278,7 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
+          aria-label="Clinician observation notes"
           placeholder={'e.g.\nUterus normal size.\nEndometrium 7 mm.\nBoth ovaries normal.\nNo free fluid.'}
           rows={5}
           className="w-full bg-black/30 border border-white/15 focus:border-primary rounded-xl px-3 py-2.5 text-xs text-white placeholder-white/30 focus:outline-none transition-colors"
@@ -240,20 +311,41 @@ export default function AIAssistantPanel({ patientId, requestId, currentFindings
           </p>
         )}
         {error && (
-          <p className="mt-2 text-[10px] text-red-400 flex items-start gap-1.5">
+          <p className="mt-2 text-[11px] text-amber-300 flex items-start gap-1.5" role="status">
             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />
-            {error}
+            <span>{error}</span>
           </p>
+        )}
+        {error && !modelDisabled && (
+          <button
+            type="button"
+            onClick={handlePolish}
+            disabled={polishing || !notes.trim()}
+            className="mt-2 glass-btn px-3 py-2 text-xs font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Retry draft
+          </button>
         )}
       </div>
 
       {polished && (
-        <div className="space-y-3 p-3 rounded-xl bg-emerald-400/5 border border-emerald-400/20">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Draft for your review</p>
-          <div className="text-[11px] text-white/85 whitespace-pre-wrap max-h-56 overflow-y-auto">
-            {polished.findings}
-            {polished.impression && `\n\nImpression:\n${polished.impression}`}
+        <div className="space-y-3 p-4 rounded-xl bg-emerald-400/5 border border-emerald-400/20" aria-live="polite">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Unverified draft</p>
+            <p className="mt-1 text-[10px] text-muted">Review and edit the text below before applying it to the report.</p>
           </div>
+          {polished.findings && (
+            <section>
+              <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Findings</h3>
+              <p className="text-xs text-main whitespace-pre-wrap">{polished.findings}</p>
+            </section>
+          )}
+          {polished.impression && (
+            <section>
+              <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Impression</h3>
+              <p className="text-xs text-main whitespace-pre-wrap">{polished.impression}</p>
+            </section>
+          )}
           <button
             type="button"
             onClick={handleApply}
