@@ -250,47 +250,6 @@ const LandingPage: React.FC = () => {
               </Reveal>
             </div>
 
-            <Reveal delay={0.16} y={26}>
-              <div className="mx-auto w-full max-w-xl">
-                <motion.div
-                  whileHover={!reduce ? { y: -6, rotateX: 0.5 } : {}}
-                  transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-                  className="group relative overflow-hidden rounded-[2rem] border border-cyan-200 bg-white p-2 shadow-sm"
-                >
-                  <motion.div
-                    className="relative h-72 rounded-[1.75rem] border border-slate-100 bg-white p-5"
-                  >
-                    <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.25em] text-cyan-700">Connected workflow</p>
-                        <h2 className="mt-2 text-xl font-semibold text-slate-900">Study path</h2>
-                      </div>
-                      <motion.div
-                        whileHover={{ scale: 1.15 }}
-                        className="rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-[9px] uppercase tracking-[0.2em] text-cyan-800"
-                      >
-                        Live
-                      </motion.div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {['Capture imaging study', 'Organize clinical context', 'Route to specialist review', 'Finalize and share report', 'Patient access and follow-through'].map((item, index) => (
-                        <motion.div
-                          key={item}
-                          whileHover={!reduce ? { x: 4 } : {}}
-                          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"
-                        >
-                           <div className="flex h-8 w-8 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-[10px] font-bold text-cyan-800">
-                             {index + 1}
-                           </div>
-                          <span className="text-sm text-slate-700 group-hover:text-cyan-800 transition-colors">{item}</span>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </motion.div>
-                </motion.div>
-              </div>
-            </Reveal>
           </div>
         </section>
 

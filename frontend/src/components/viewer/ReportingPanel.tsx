@@ -28,6 +28,8 @@ export default function ReportingPanel() {
   
   const [reportIdx, setReportIdx] = useState<number>(-1);
   const [existingReports, setExistingReports] = useState<Record<number, any>>({});
+  const [reportsLoaded, setReportsLoaded] = useState(false);
+  const hydratedReportKey = React.useRef<string | null>(null);
   const [clinicalHistory, setClinicalHistory] = useState('');
   const [findings, setFindings] = useState('');
   const [impression, setImpression] = useState('');
@@ -42,6 +44,11 @@ export default function ReportingPanel() {
 
   useEffect(() => {
     if (patientId && requestId) {
+      setReportsLoaded(false);
+      setExistingReports({});
+      setReportIdx(-1);
+      hydratedReportKey.current = null;
+
       const fetchRequestData = async () => {
         try {
           const reqRef = doc(db, 'patients', patientId, 'requests', requestId);
@@ -75,7 +82,7 @@ export default function ReportingPanel() {
       fetchRequestData();
 
       const reportsRef = collection(db, 'patients', patientId, 'requests', requestId, 'reports');
-      const unsubscribeReports = onSnapshot(reportsRef, (snapshot) => {
+      const unsubscribeReports = onSnapshot(reportsRef, { includeMetadataChanges: true }, (snapshot) => {
         const reportsMap: Record<number, any> = {};
         snapshot.docs.forEach(doc => {
           const data = doc.data();
@@ -86,6 +93,7 @@ export default function ReportingPanel() {
           }
         });
         setExistingReports(reportsMap);
+        if (!snapshot.metadata.fromCache) setReportsLoaded(true);
       }, (err) => {
         console.error('Error listening to reports in panel:', err);
       });
@@ -98,7 +106,10 @@ export default function ReportingPanel() {
 
   // Update form values when selected procedure changes
   useEffect(() => {
-    if (reportIdx === -1) return;
+    if (reportIdx === -1 || !reportsLoaded) return;
+    const reportKey = `${requestId}:${reportIdx}`;
+    if (hydratedReportKey.current === reportKey) return;
+
     const report = existingReports[reportIdx];
     if (report) {
       setClinicalHistory(report.clinicalHistory || '');
@@ -114,7 +125,8 @@ export default function ReportingPanel() {
       setPdfReports([]);
     }
     setPdfFile(null);
-  }, [reportIdx, existingReports, requestHistory]);
+    hydratedReportKey.current = reportKey;
+  }, [reportIdx, existingReports, reportsLoaded, requestId]);
 
   const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -145,7 +157,7 @@ export default function ReportingPanel() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!patientId || !requestId || (!auth.currentUser && !profile) || reportIdx === -1) return;
+    if (!patientId || !requestId || (!auth.currentUser && !profile) || reportIdx === -1 || !reportsLoaded) return;
 
     setIsUploading(true);
     setStatus('idle');
@@ -374,6 +386,9 @@ export default function ReportingPanel() {
       )}
 
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4 no-scrollbar text-white [.theme-teleradiology_&]:text-black">
+        {reportIdx !== -1 && !reportsLoaded && (
+          <p className="text-xs text-muted" role="status">Loading saved report...</p>
+        )}
         <div className="space-y-1">
           <label className="text-[10px] text-white [.theme-teleradiology_&]:text-slate-900 uppercase font-black tracking-wider block">
             Clinical History
@@ -383,7 +398,7 @@ export default function ReportingPanel() {
               theme="snow"
               value={clinicalHistory}
               onChange={setClinicalHistory}
-              readOnly={reportIdx === -1}
+              readOnly={reportIdx === -1 || !reportsLoaded}
               modules={QUILL_MODULES}
               formats={QUILL_FORMATS}
               placeholder="Clinical background..."
@@ -401,7 +416,7 @@ export default function ReportingPanel() {
               theme="snow"
               value={findings}
               onChange={setFindings}
-              readOnly={reportIdx === -1}
+              readOnly={reportIdx === -1 || !reportsLoaded}
               modules={QUILL_MODULES}
               formats={QUILL_FORMATS}
               placeholder="Type findings draft here..."
@@ -417,7 +432,7 @@ export default function ReportingPanel() {
               theme="snow"
               value={impression}
               onChange={setImpression}
-              readOnly={reportIdx === -1}
+              readOnly={reportIdx === -1 || !reportsLoaded}
               modules={QUILL_MODULES}
               formats={QUILL_FORMATS}
               placeholder="Draft final impression..."
@@ -457,7 +472,7 @@ export default function ReportingPanel() {
               onChange={handlePdfChange}
               className="hidden"
               id="pdf-upload"
-              disabled={reportIdx === -1}
+              disabled={reportIdx === -1 || !reportsLoaded}
             />
             <label
               htmlFor="pdf-upload"
@@ -479,7 +494,7 @@ export default function ReportingPanel() {
             id="isCritical"
             checked={isCritical}
             onChange={e => setIsCritical(e.target.checked)}
-            disabled={reportIdx === -1}
+            disabled={reportIdx === -1 || !reportsLoaded}
             className="w-4 h-4 rounded border-slate-300 bg-slate-50 text-red-600 focus:ring-red-500"
           />
           <label htmlFor="isCritical" className="text-[10px] font-bold text-red-600 uppercase tracking-wider cursor-pointer">Critical Finding Flag</label>

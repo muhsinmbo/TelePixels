@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { collectionGroup, onSnapshot, query, where, collection, getDocs, doc, updateDoc, addDoc, setDoc, getDoc, serverTimestamp, orderBy, limit, db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate } from '../lib/utils';
@@ -119,6 +119,8 @@ export default function ReportingInterface() {
   const [report, setReport] = useState({ clinicalHistory: '', findings: '', impression: '', isCritical: false });
   const [pdfReports, setPdfReports] = useState<{ name: string; data: string }[]>([]);
   const [existingReports, setExistingReports] = useState<Record<number, any>>({});
+  const [reportsLoadedForRequestId, setReportsLoadedForRequestId] = useState<string | null>(null);
+  const hydratedReportKey = useRef<string | null>(null);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [facilityInfo, setFacilityInfo] = useState({ name: '', logo: '', letterhead: '' });
@@ -209,10 +211,17 @@ export default function ReportingInterface() {
   useEffect(() => {
     if (!selectedRequest) {
       setExistingReports({});
+      setReportsLoadedForRequestId(null);
       setSelectedProcedureIdx(-1);
+      hydratedReportKey.current = null;
       return;
     }
 
+    const requestId = selectedRequest.id;
+    setExistingReports({});
+    setReportsLoadedForRequestId(null);
+    setSelectedProcedureIdx(-1);
+    hydratedReportKey.current = null;
     const reportsRef = collection(db, 'patients', selectedRequest.patientId, 'requests', selectedRequest.id, 'reports');
     const unsubscribe = onSnapshot(reportsRef, (snapshot) => {
       const reportsMap: Record<number, any> = {};
@@ -226,15 +235,12 @@ export default function ReportingInterface() {
         }
       });
       setExistingReports(reportsMap);
+      setReportsLoadedForRequestId(requestId);
 
       // Auto-select first procedure that needs report if none selected
-      if (selectedProcedureIdx === -1) {
-        const procedures = selectedRequest.procedures || [];
-        const firstIdx = procedures.findIndex((p: any) => typeof p === 'object' && p.needsReport);
-        if (firstIdx !== -1) {
-          setSelectedProcedureIdx(firstIdx);
-        }
-      }
+      const procedures = selectedRequest.procedures || [];
+      const firstIdx = procedures.findIndex((p: any) => typeof p === 'object' && p.needsReport);
+      setSelectedProcedureIdx((currentIdx) => currentIdx === -1 ? firstIdx : currentIdx);
     }, (err) => {
       console.error('Error listening to reports:', err);
     });
@@ -244,7 +250,9 @@ export default function ReportingInterface() {
 
   // Load selected report data when procedure changes
   useEffect(() => {
-    if (selectedProcedureIdx === -1) return;
+    if (!selectedRequest || selectedProcedureIdx === -1 || reportsLoadedForRequestId !== selectedRequest.id) return;
+    const reportKey = `${selectedRequest.id}:${selectedProcedureIdx}`;
+    if (hydratedReportKey.current === reportKey) return;
 
     const existingReport = existingReports[selectedProcedureIdx];
     if (existingReport) {
@@ -264,7 +272,8 @@ export default function ReportingInterface() {
       });
       setPdfReports([]);
     }
-  }, [selectedProcedureIdx, existingReports, selectedRequest]);
+    hydratedReportKey.current = reportKey;
+  }, [selectedProcedureIdx, existingReports, selectedRequest, reportsLoadedForRequestId]);
 
   const proceedWithReporting = async (request: Request) => {
     setSelectedRequest(request);
